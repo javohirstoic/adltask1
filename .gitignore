@@ -1,0 +1,22 @@
+# Maxfiy sozlamalar va kalitlar
+.env
+.env.*
+!.env.example
+deploy/secrets/
+deploy/PIN.txt
+*.json.key
+*-sa.json
+
+# Ma'lumotlar bazasi va AI keshi
+data/
+deploy/data/
+*.db
+*.db-wal
+*.db-shm
+ai_cache.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/

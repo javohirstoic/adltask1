@@ -1,0 +1,16 @@
+name: adliya-puls
+services:
+  web:
+    build: .
+    image: adliya-puls-web
+    env_file: .env
+    environment:
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: "8000"
+      GEMINI_SA: /run/secrets/gemini-sa.json
+    ports:
+      - "127.0.0.1:${HOST_PORT:-8121}:8000"   # faqat shu kompyuterdan; tashqariga nginx orqali
+    volumes:
+      - ./data:/srv/data
+      - ./secrets/gemini-sa.json:/run/secrets/gemini-sa.json:ro
+    restart: unless-stopped

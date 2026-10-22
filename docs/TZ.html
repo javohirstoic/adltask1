@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Puls — Texnik topshiriq v1.1</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm; }
+  * { box-sizing: border-box; }
+  body { font: 10.4pt/1.55 "Segoe UI", Inter, system-ui, sans-serif; color: #111827; margin: 0; }
+  h1 { font-size: 26pt; letter-spacing: -.02em; margin: 0 0 4px; }
+  h2 { font-size: 15pt; margin: 26px 0 8px; padding-top: 10px; border-top: 2px solid #111827; letter-spacing: -.01em; page-break-after: avoid; }
+  h3 { font-size: 11.6pt; margin: 16px 0 6px; page-break-after: avoid; }
+  p { margin: 6px 0; }
+  ul, ol { margin: 6px 0; padding-left: 20px; }
+  li { margin: 3px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 10px; font-size: 9.6pt; page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th { text-align: left; background: #f3f4f8; font-weight: 650; padding: 6px 8px; border: 1px solid #e3e6ee; }
+  td { padding: 6px 8px; border: 1px solid #e3e6ee; vertical-align: top; }
+  code { font-family: Consolas, monospace; font-size: 9.2pt; background: #f3f4f8; padding: 1px 4px; border-radius: 4px; }
+  .cover { padding: 30px 0 8px; border-bottom: 1px solid #e3e6ee; margin-bottom: 8px; }
+  .muted { color: #5b6474; }
+  .tag { display: inline-block; font-size: 8.6pt; font-weight: 650; padding: 1px 7px; border-radius: 99px; background: #eef0ff; color: #3730a3; }
+  .box { border: 1px solid #e3e6ee; border-radius: 10px; padding: 10px 12px; margin: 8px 0; background: #fafbfd; page-break-inside: avoid; }
+  .box b { color: #111827; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .k { font-weight: 650; }
+  .src { font-size: 9pt; color: #5b6474; }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; border: 1px solid rgba(0,0,0,.08); }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="tag">Adliya AKT markazi · Task 1 · MVP</div>
+  <h1>Puls — texnik topshiriq</h1>
+  <p class="muted">Telegram ish guruhlaridan rahbar uchun loyihalar va jamoa nazorati paneli. Versiya 1.1 · 20-oktyabr 2026 · Muallif: Javohir Jumaboyev (jamoa: Valijon, Asror).</p>
+</div>
+
+<h2>0. Hujjat haqida</h2>
+<p><b>Texnik topshiriq (TZ)</b> — tizim nima qilishi, qanday ko'rinishi va qachon "tayyor" hisoblanishini oldindan aniq yozib qo'yadigan hujjat. U quruvchi uchun chizma, tekshiruvchi uchun mezon vazifasini bajaradi. Bu hujjatdagi har bir raqam, chegara va ekran shu tartibda quriladi; o'zgarish bo'lsa avval hujjat yangilanadi, keyin kod.</p>
+
+<h2>1. Muammo va maqsad</h2>
+<p><b>Muammo.</b> Jamoalar kundalik ishni Telegram guruhlarida yozadi: vazifa berildi, bajarildi, muammo chiqdi. Bitta guruhda bir nechta loyiha aralash yuradi. Rahbar kuniga yuzlab xabarni o'qiy olmaydi, shuning uchun qaysi loyiha kechikayotgani, kim ortiqcha yuklangani, kim bo'sh turgani va kim hisobot bermayotgani o'z vaqtida ko'rinmaydi. Muammo kech — muddat o'tgandan keyin bilinadi.</p>
+<p><b>Maqsad.</b> Rahbar panelni ochganda <b>5 soniyada</b> "hammasi joyidami" degan savolga javob oladi, <b>1 daqiqada</b> qaror talab qiladigan masalalarni va tavsiyani ko'radi, istalgan raqamni sababigacha ochib tekshira oladi va qarorni shu paneldan turib bajara oladi.</p>
+<h3>O'lchanadigan muvaffaqiyat mezonlari</h3>
+<table>
+  <tr><th>Mezon</th><th>Talab</th><th>Qanday tekshiriladi</th></tr>
+  <tr><td>5 soniyalik test</td><td>3 kishidan 3 tasi panelni 5 soniya ko'rib "holat qanday va nima qilish kerak" savoliga to'g'ri javob beradi</td><td>Taqdimotdan oldin jamoa ichida sinov</td></tr>
+  <tr><td>Jonlilik</td><td>Guruhga yozilgan xabar panelda 5 soniyadan kech emas paydo bo'ladi</td><td>Test guruhga xabar yozib, vaqtni o'lchash</td></tr>
+  <tr><td>Tezlik</td><td>Sahifa 1 soniyada ochiladi, har bosishga javob 400 ms dan tez</td><td>Brauzer o'lchovi</td></tr>
+  <tr><td>AI aniqligi</td><td>Formatsiz xabarlarning kamida 95% i to'g'ri tushuniladi</td><td>Namuna to'plam: 145 xabardan 144 tasi to'g'ri (99%) — o'lchangan</td></tr>
+  <tr><td>Kuchsiz qurilma</td><td>Videokartasiz telefon va noutbukda qotmasdan ishlaydi</td><td>390 px telefon rejimida sinov</td></tr>
+</table>
+
+<h2>2. Kim foydalanadi</h2>
+<table>
+  <tr><th>Foydalanuvchi</th><th>Nima qiladi</th><th>Asosiy savoli</th></tr>
+  <tr><td><b>Rahbar</b> (asosiy)</td><td>Panelni telefonda va katta ekranda ko'radi, qaror qabul qiladi</td><td>Hammasi joyidami? Nima qaror qilishim kerak? Kim yaxshi, kim sust? Qaysi loyiha muddatga ulgurmaydi?</td></tr>
+  <tr><td><b>Bo'lim boshlig'i</b></td><td>O'z bo'limi xodimlari va yuklamasini kuzatadi</td><td>Kimga yangi ish bersam bo'ladi? Kim qiynalyapti?</td></tr>
+  <tr><td><b>Xodim</b></td><td>Guruhga odatdagidek yozadi, panelga kirmaydi</td><td>Bot xabarimni tushundimi? (reaksiya orqali biladi)</td></tr>
+</table>
+<h3>Asosiy ssenariylar</h3>
+<ol>
+  <li>Rahbar ertalab Telegramda brifing oladi, havolani bosib panelni ochadi va bugungi 3 ta asosiy masalani ko'radi.</li>
+  <li>Rahbar "Sardorning ishi ko'payib ketgan" degan kartani ochadi, tavsiyani ko'radi ("3 ta vazifani bo'sh turgan Bekzodga o'tkazish") va "Bajarish" tugmasini bosadi. Bot guruhga qaror haqida yozadi, vazifalar qayta biriktiriladi, qaror jurnalga tushadi.</li>
+  <li>Rahbar loyiha nomini bosadi va nega xavf ostida ekanini, real tugash sanasini, kim nima qilayotganini ko'radi.</li>
+  <li>Rahbar "Vaqt mashinasi" bilan o'tgan haftaga qaytib, holat qanday o'zgarganini ko'radi.</li>
+  <li>Xodim formatsiz yozadi ("login sahifasini tugatdim"); AI tushunadi, bot 👍 reaksiya qo'yadi. AI adashsa, rahbar panelda bir bosishda tuzatadi.</li>
+  <li>Bo'lim boshlig'i Xodimlar bo'limida o'z bo'limini filtrlab, kim bo'shligini ko'radi.</li>
+</ol>
+
+<h2>3. Psixologik tamoyillar (dizaynning asosi)</h2>
+<p>Har bir tamoyil uchun: nima ekani, qayerdan olingani va Puls'da aniq qanday qo'llanishi.</p>
+<table>
+  <tr><th style="width:24%">Tamoyil</th><th style="width:38%">Mazmuni va manba</th><th>Puls'da qo'llanishi</th></tr>
+  <tr><td class="k">1. Bir qarashda (5 soniya)</td><td>Dashboard eng muhim ma'lumotni bitta ekranda, bir qarashda yetkazishi kerak; aks holda undan foydalanilmaydi. <span class="src">Stephen Few, "Information Dashboard Design", 2006.</span></td><td>Bosh ekran tepasida bitta raqam — Puls indeksi — va bitta jumla. Birinchi ekranda aylantirmasdan javob ko'rinadi.</td></tr>
+  <tr><td class="k">2. Istisno bo'yicha boshqarish</td><td>Rahbarga faqat me'yordan chetga chiqqan narsalar ko'rsatiladi; jim turgan monitor "bemor barqaror" degani. Chegaralar oldindan belgilanadi. <span class="src">Management by Exception; JMAR 2022.</span></td><td>Me'yordagi hamma narsa sokin kulrang. Rang faqat aralashuv kerak bo'lgan joyda. Barcha chegaralar Sozlamalarda o'zgartiriladi.</td></tr>
+  <tr><td class="k">3. Ongsiz idrok (200 ms)</td><td>Rang, o'lcham, holat va harakat ko'z ongli o'qishdan oldin, 200 ms ichida ilg'aydi. Ularni ko'p ishlatish esa shovqin bo'ladi. <span class="src">Few; Qlik Design Blog; The Data School.</span></td><td>Qat'iy rang lug'ati: qizil — aralashing, sariq — kuzating, yashil — yaxshi, kulrang — me'yor. Harakat faqat yangi hodisada (jonli urish).</td></tr>
+  <tr><td class="k">4. Umumiy → yaqin → tafsilot</td><td>"Avval umumiy ko'rinish, keyin yaqinlashtirish va filtr, so'ng so'ralganda tafsilot." <span class="src">Ben Shneiderman, "The Eyes Have It", 1996.</span></td><td>3 qavat: Bosh ekran → Bo'lim (Ofis, Xodimlar, Loyihalar, Bo'limlar) → Karta (xodim yoki loyiha). Har raqam bosiladi.</td></tr>
+  <tr><td class="k">5. Sokin texnologiya</td><td>Texnologiya e'tiborni talab qilmasdan xabardor qiladi, chetda turadi va faqat kerak bo'lganda markazga chiqadi. <span class="src">Weiser va Brown, Xerox PARC, 1995; Amber Case, "Calm Technology", 2015.</span></td><td>Panel o'zi yangilanadi, bildirishnoma faqat muhim hodisada. Telegram brifing kuniga 2 marta, ogohlantirish faqat kritik holatda.</td></tr>
+  <tr><td class="k">6. Doherty chegarasi</td><td>Tizim 400 ms dan tez javob berganda odam ham, tizim ham bir-birini kutmaydi va unumdorlik oshadi. <span class="src">Doherty va Thadani, IBM, 1982; Laws of UX.</span></td><td>Har bosishga darhol javob, yuklanishda skelet (kulrang shakl), aylanuvchi belgi yo'q.</td></tr>
+  <tr><td class="k">7. Kognitiv yuk</td><td>Qisqa xotira bir vaqtda bir nechta bo'lakni ushlaydi; tanlov ko'paysa qaror sekinlashadi (Hick qonuni).</td><td>Bosh ekranda 7 tadan ortiq blok yo'q, menyu 5 ta bo'lim, har kartada bitta asosiy fikr.</td></tr>
+  <tr><td class="k">8. Bo'sh joy va cheklov = premium</td><td>Bo'sh joy va cheklangan bezak sifat va qadr hissini oshiradi; tartibsizlik arzonlik hissini beradi. <span class="src">Pracejus, Olsen, O'Guinn, J. Consumer Research, 2006; SJSU tezisi, 2013.</span></td><td>Katta oraliqlar, bitta urg'u rang, kam chegara chiziq, katta va aniq raqamlar.</td></tr>
+  <tr><td class="k">9. Chiroyli, lekin avvalo sodda</td><td>Chiroyli interfeys qulayroq ko'rinadi (Tractinsky, 2000), ammo keyingi tadqiqotlarda soddalik va haqiqiy qulaylik muhimroq chiqqan (Tuch va b.).</td><td>Avval tushunarlilik, keyin bezak. Hech qanday "chiroy uchun" grafik yo'q.</td></tr>
+  <tr><td class="k">10. Hisobot emas, harakat</td><td>Zamonaviy panellar raqamning o'zini emas, keyingi qadamni taklif qiladi. <span class="src">SaaSFrame, 2026 trendlar.</span></td><td>Har muammo yonida "Tavsiya" va "Bajarish" tugmasi. Qarorlar jurnali.</td></tr>
+  <tr><td class="k">11. Shaffoflik va ishonch</td><td>Rahbar raqamga ishonishi uchun uning qayerdan kelganini ko'ra olishi kerak.</td><td>Har baho va holat yonida "Nega?" — formula va dalil. AI tushungan xabar "AI" belgisi bilan, xato bir bosishda tuzatiladi.</td></tr>
+  <tr><td class="k">12. O'zini o'zi tushuntiradigan interfeys</td><td>Yaxshi buyum qanday ishlatilishini o'zi ko'rsatadi: bosiladigan narsa bosiladigandek ko'rinadi, natija darhol seziladi. <span class="src">Don Norman, "The Design of Everyday Things" (affordance va signifier).</span></td><td><b>Ekranda tushuntirish matni yo'q.</b> Tugma ustida harakatning o'zi yoziladi ("3 vazifani Bekzodga berish"); holat belgisida faktning o'zi ("Ishi ko'p · 18"); rang tushuntirmasi bir vaqtda filtr; tafsilot faqat sichqoncha olib borilganda yoki bosilganda chiqadi; bosiladigan hamma narsa ko'tarilib, kursor qo'lga aylanadi.</td></tr>
+  <tr><td class="k">13. Adolat</td><td>Xodim haqidagi xulosa faqat o'lchanadigan dalilga tayanadi.</td><td>"Dangasa" so'zi ishlatilmaydi — "past samaradorlik" va sababi. Baho faqat ishga oid.</td></tr>
+</table>
+
+<h2>4. Ekranlar (axborot arxitekturasi)</h2>
+<p>Menyu: <b>Brifing · Ofis · Xodimlar · Loyihalar · Bo'limlar</b>. Har ekranda davr tanlovi (Bugun / 7 kun / 30 kun / oraliq), guruh tanlovi, qidiruv (Ctrl+K) va <b>Vaqt mashinasi</b> bor.</p>
+
+<h3>4.1. Brifing (bosh ekran) — "5 soniyalik javob"</h3>
+<table>
+  <tr><th>Blok</th><th>Mazmuni</th><th>Harakat</th></tr>
+  <tr><td>1. Puls</td><td>Katta halqa ichida Puls indeksi (0–100) va so'z bilan bahosi (A'lo / Barqaror / Diqqat kerak / Xavfli). Yonida salom, sana va bitta jumla: "Bugun 3 ta masala qaroringizni kutmoqda". Pastida jonli yurak urishi chizig'i: guruhga har yangi xabar kelganda chiziqda urish paydo bo'ladi.</td><td>Indeks bosilsa — u qanday hisoblangani ochiladi</td></tr>
+  <tr><td>2. Qaroringiz kerak</td><td>3 ta katta karta (eng muhimlari): ikki tonli belgi, sarlavha (5 so'zgacha), bitta dalil qatori va harakat tugmasi — tugma matni harakatning o'zi ("Muddatni 27-oktyabrga surish", "3 vazifani Bekzodga berish", "Guruhda holatini so'rash"). Qolganlari "yana N ta" ostida.</td><td>Tugma — tasdiq oynasi (nima bo'lishi, guruhga ketadigan xabar matni) — bajarish; karta — tafsilot</td></tr>
+  <tr><td>3. Ko'rsatkichlar</td><td>4 ta plitka, har birida 14 kunlik mini grafik: Yangi vazifalar, Bajarildi, Bajarilish %, Vazifani yopish vaqti (o'rtacha kun). Oldingi davrga nisbatan o'zgarish.</td><td>Bosilsa tegishli bo'limga o'tadi</td></tr>
+  <tr><td>4. Jamoa</td><td>Hamma xodimlar yuzlari (bosh harflar), bo'limlar bo'yicha guruhlangan; yuz atrofidagi halqa rangi — holat.</td><td>Yuz bosilsa xodim kartasi</td></tr>
+  <tr><td>5. Loyihalar yo'li</td><td>Har loyiha bitta qator: bajarilgan qismi, bugungi kun, muddat va prognoz tugash sanasi bitta chiziqda. Prognoz muddatdan o'ng tomonda bo'lsa — qizil.</td><td>Loyiha kartasi</td></tr>
+  <tr><td>6. Dinamika va lenta</td><td>Kunlik yangi/bajarilgan grafigi; so'nggi xabarlar lentasi (AI belgisi bilan).</td><td>Xabardagi AI xatosini "Tuzatish"</td></tr>
+</table>
+
+<h3>4.2. Ofis</h3>
+<p>Tashkilotning jonli xaritasi: har bo'lim — alohida xona, har xodim — stolda kompyuter oldida. Ekran rangi — holat (yashil ishlayapti, sariq vazifasi cho'zilgan, qizil ishi ko'p, xira — hisobot yo'q, o'chiq — bo'sh). Stoldagi qog'oz uyumi — ochiq vazifalar soni. Faqat muhim holatlarda pufakcha. Sichqoncha va barmoq bilan surish va kattalashtirish. Yon panelda diqqat talab qiladigan xodimlar; bosilsa sahna o'sha xodimga yaqinlashadi.</p>
+<p><b>Texnika:</b> 1-bosqichda 2,5D izometrik (SVG, videokarta kerak emas). Jonli 3D (Three.js, past poligonli Blender modellari) — 3-qism, eng oxirida; kuchsiz qurilmada avtomatik 2,5D ga qaytadi.</p>
+
+<h3>4.3. Xodimlar</h3>
+<p>Tepada 4 ta xulosa: ishi ko'payib ketganlar, bo'shlar, eng samarali, eng past samaradorlik. Filtrlar: bo'lim, holat, qidiruv; saralash: muammolilar avval, baho, yuklama, eng eski vazifa. Har xodim kartasida: bo'lim, holat va sababi, baho halqasi, ochiq / bajardi / o'rtacha kun, yuklama chizig'i, eng eski 3 vazifa va ularning yoshi.</p>
+
+<h3>4.4. Xodim kartasi (yon oyna)</h3>
+<ul>
+  <li>Holat va sababi bitta jumlada; oxirgi faollik vaqti.</li>
+  <li>Samaradorlik bahosi va uning 4 qismi alohida chiziqlarda, har birining izohi bilan ("30 kunda olgan vazifalarining 54% ini yopgan").</li>
+  <li>Kuchli va zaif tomonlar diagrammasi (5 o'q: bajarish, tezlik, muntazamlik, yuklama, eskirmagan vazifalar).</li>
+  <li>14 kunlik bajargan ishi grafigi; ochiq vazifalar (yoshi bilan); davrda bajarganlari (necha kunda).</li>
+  <li>Bo'limni o'zgartirish; "Vazifa o'tkazish" harakati.</li>
+</ul>
+
+<h3>4.5. Loyihalar va loyiha kartasi</h3>
+<p>Jadval: loyiha, jamoa, yangi/bajarilgan, umumiy progress, muddat, prognoz, holat; har ustun bo'yicha saralash. Ostida "Ochiq muammolar" va "Vazifasi kam loyihalar". Loyiha kartasida: progress, ochiq vazifa, muddat, prognoz sanasi, "Nega shu holatda" ro'yxati, dinamika, jamoa, ochiq vazifalar (yoshi bilan), "Yangi muddat belgilash" harakati.</p>
+
+<h3>4.6. Bo'limlar</h3>
+<p>Bo'limlar taqqoslamasi (bajarilgan va ochiq), har bo'lim kartasi: odamlar, ochiq/yangi/bajarilgan, bajarilish foizi, o'rtacha baho, holatlar taqsimoti, eng yaxshi xodim.</p>
+
+<h3>4.7. Umumiy funksiyalar</h3>
+<table>
+  <tr><th>Funksiya</th><th>Tavsif</th></tr>
+  <tr><td>Vaqt mashinasi</td><td>Sana slayderi: istalgan kunni tanlab, o'sha kun oxiridagi holatni ko'rish. "Ijro" tugmasi 30 kunni kunma-kun aylantirib ko'rsatadi.</td></tr>
+  <tr><td>Qaror markazi</td><td>Tavsiyalarni bajarish: vazifani boshqa xodimga o'tkazish, holatni so'rash, yangi muddat belgilash. Har harakat tasdiq oynasida aniq nima bo'lishini ko'rsatadi, bot guruhga yozadi, qaror jurnalga tushadi.</td></tr>
+  <tr><td>AI xatosini tuzatish</td><td>Lentadagi xabarni ochib turini va loyihasini to'g'rilash; tuzatish saqlanadi va kelajakda modelni o'qitish (fine-tuning) uchun to'plamga qo'shiladi.</td></tr>
+  <tr><td>Sozlamalar</td><td>Barcha chegaralar (necha kun jimlik = "hisobot bermayapti", necha kunlik vazifa = "cho'zilgan" va h.k.), baho og'irliklari, brifing vaqti — kodga yozilmaydi, paneldan o'zgartiriladi.</td></tr>
+  <tr><td>Qidiruv</td><td>Ctrl+K: xodim, loyiha yoki bo'limni yozib topish.</td></tr>
+  <tr><td>TV rejimi</td><td>Katta ekranda bo'limlar har 20 soniyada o'zi almashadi.</td></tr>
+  <tr><td>Hisobot</td><td>Excel (har jadval alohida fayl emas, bitta toza varaq), tanlangan davr bo'yicha.</td></tr>
+  <tr><td>Tarixni yuklash</td><td>Telegram Desktop eksport fayli — bot qo'shilishidan oldingi xabarlar ham hisobga olinadi.</td></tr>
+  <tr><td>Kirish</td><td>6 xonali kod; noto'g'ri urinishlar cheklanadi.</td></tr>
+  <tr><td>Shaxsiy eslatma</td><td>Har xodimning shaxsiy havolasi (t.me/bot?start=...). Xodim Start bossa chat ID yoziladi, yangi akkauntdan qayta bossa yangilanadi. Shundan keyin "Holatini so'rash" va "Eslatma yozish" xabari guruhga emas, xodimning o'ziga boradi. "Yangi havola" eskisini bekor qiladi.</td></tr>
+</table>
+
+<h2>5. Ko'rsatkichlar lug'ati (formulalar)</h2>
+<table>
+  <tr><th style="width:26%">Ko'rsatkich</th><th>Qanday hisoblanadi</th></tr>
+  <tr><td>Yangi vazifalar</td><td>Davr ichida yaratilgan vazifalar soni (#task yoki AI aniqlagan).</td></tr>
+  <tr><td>Bajarildi</td><td>Davr ichida yopilgan vazifalar soni.</td></tr>
+  <tr><td>Bajarilish %</td><td>Davrda yaratilgan vazifalardan hozirgacha yopilganlari ulushi.</td></tr>
+  <tr><td>Umumiy progress</td><td>Loyihaning barcha vazifalaridan yopilganlari ulushi.</td></tr>
+  <tr><td>Sur'at</td><td>So'nggi 7 kunda yopilgan vazifalar / 7 (kuniga necha vazifa).</td></tr>
+  <tr><td>Prognoz tugash sanasi</td><td>Bugun + ochiq vazifalar / sur'at. Muddatdan keyin bo'lsa — "kechikadi".</td></tr>
+  <tr><td>Yopish vaqti</td><td>Vazifa yaratilgan va yopilgan vaqt orasidagi kunlar o'rtachasi (30 kun).</td></tr>
+  <tr><td><b>Puls indeksi</b></td><td>0,4 × Loyihalar salomatligi + 0,3 × Jamoa salomatligi + 0,3 × Ritm.<br>Loyihalar: har loyiha holatiga ball (Me'yorda 100, Kuzatuv 85, Diqqat 65, Xavf 35, Kritik 10), o'rtachasi.<br>Jamoa: (me'yorida 1, bo'sh 0,8, cho'zilyapti 0,5, hisobot yo'q 0,3, ishi ko'p 0,3) ballari o'rtachasi × 100.<br>Ritm: 50% — 7 kunda bajarilgan / yangi (1 dan oshmaydi), 50% — so'nggi 2 ish kunida hisobot bergan xodimlar ulushi.<br>85+ A'lo, 70–84 Barqaror, 55–69 Diqqat kerak, 55 dan past Xavfli.</td></tr>
+</table>
+<h3>Loyiha holatlari (eng og'ir sabab hal qiladi)</h3>
+<table>
+  <tr><th>Daraja</th><th>Qoida (standart chegara)</th></tr>
+  <tr><td>Kritik</td><td>Muddat o'tgan va ochiq vazifa bor.</td></tr>
+  <tr><td>Xavf</td><td>Muddatga 3 kun yoki kam qolgan va progress 70% dan past; yoki prognoz muddatdan keyin va muddatgacha 7 kun yoki kam; yoki 7 kunda birorta vazifa yopilmagan; yoki muammo 3 kundan beri hal bo'lmagan; yoki 5 ish kuni hisobot yo'q.</td></tr>
+  <tr><td>Diqqat</td><td>Prognoz muddatdan keyin (muddatgacha 7 kundan ko'p); 2 ish kuni hisobot yo'q; yangi ochiq muammo.</td></tr>
+  <tr><td>Kuzatuv</td><td>Ishning 75% i bitta odamda; davrda vazifalar loyihalar o'rtachasining 40% idan kam.</td></tr>
+  <tr><td>Me'yorda</td><td>Yuqoridagilarning hech biri yo'q.</td></tr>
+</table>
+<h3>Xodim holatlari (tartib bilan tekshiriladi)</h3>
+<table>
+  <tr><th>Holat</th><th>Qoida (standart chegara)</th><th>Rahbarga ma'nosi</th></tr>
+  <tr><td>Bo'sh</td><td>Ochiq vazifasi yo'q</td><td>Yangi ish berish mumkin</td></tr>
+  <tr><td>Ishi ko'payib ketgan</td><td>14 kunda berilgan vazifalar jamoa o'rtachasidan 2 baravar ko'p va kamida 6 ta ochiq</td><td>Yuklamani tenglash kerak</td></tr>
+  <tr><td>Hisobot bermayapti</td><td>4 ish kuni birorta ish xabari yo'q</td><td>Holatini aniqlash kerak</td></tr>
+  <tr><td>Vazifasi cho'zilgan</td><td>Eng eski ochiq vazifasi 10 kundan katta</td><td>Kuzatish yoki yordam</td></tr>
+  <tr><td>Me'yorida</td><td>Yuqoridagilar yo'q</td><td>Aralashuv shart emas</td></tr>
+</table>
+<p><b>Samaradorlik bahosi (100 ball):</b> vazifani bajarish 40 (30 kunda olganlaridan yopilgan ulush), tezlik 25 (o'rtacha 1 kun va kam — to'liq, 6 kun va ko'p — 0), muntazamlik 20 (14 kun ichida hisobot bergan ish kunlari ulushi), eskirmagan vazifalar 15 (7 kundan eski ochiq vazifalar ulushiga teskari). Kamida 3 ta vazifa bo'lganda chiqadi. 80+ A'lo, 65+ Yaxshi, 50+ O'rtacha, undan past — Past samaradorlik.</p>
+<p><b>Vazifa yoshi:</b> 0–2 kun yangi (yashil), 3–6 kun cho'zilyapti (sariq), 7+ kun qotib qolgan (qizil).</p>
+<p class="muted">Barcha chegaralar va og'irliklar Sozlamalarda o'zgartiriladi.</p>
+
+<h2>6. Boshqa panellarda yo'q funksiyalar</h2>
+<ol>
+  <li><b>Tashkilot yurak urishi.</b> Puls indeksi va jonli chiziq: guruhga xabar kelishi bilan chiziqda urish paydo bo'ladi — tashkilot "tirikligini" ko'z bilan ko'rish.</li>
+  <li><b>Qaror markazi.</b> Paneldan turib qaror bajarish: bot guruhga rasmiy xabar yozadi, vazifalar qayta biriktiriladi, natija jurnalda kuzatiladi.</li>
+  <li><b>Real muddat prognozi.</b> Har loyiha uchun "hozirgi sur'atda qachon tugaydi" — sanasi bilan.</li>
+  <li><b>Vaqt mashinasi.</b> O'tgan istalgan kunning holati va 30 kunlik o'zgarishni ijro qilish.</li>
+  <li><b>Jonli ofis.</b> Odamlar stolda, ekran — holat, qog'oz uyumi — yuklama.</li>
+  <li><b>Yuklama tenglash.</b> Kimdan kimga nechta vazifa o'tkazish — bo'lim mosligini hisobga olib.</li>
+  <li><b>O'z-o'zini o'rgatuvchi AI.</b> Har tuzatish kelajakdagi fine-tuning uchun tayyor to'plamga aylanadi.</li>
+  <li><b>Shaxsiy eslatma.</b> Xodim havola orqali botga ulanadi; rahbar eslatmasi uni guruh oldida emas, shaxsan topadi.</li>
+</ol>
+
+<h2>7. Vizual tizim</h2>
+<p>Yo'nalish mavzudan olingan: vazirlik hujjatlari (kun tartibi, kadrlar kartochkasi), davlat ramzlari va mahsulot nomi — Puls (bemor monitori). Sahifada <b>bitta jasur element</b> bor — Puls monitori; qolgan hamma narsa sokin va tartibli.</p>
+<div class="grid2">
+<div class="box"><b>Mavzu.</b> Yorug' (asosiy). Qorong'i — faqat TV uchun ixtiyoriy.<br>
+<b>Ranglar (bayroq palitrasi).</b> Qog'oz <span class="sw" style="background:#f4f6f7"></span>#F4F6F7, sirt <span class="sw" style="background:#fff"></span>#FFFFFF, rasmiy siyoh <span class="sw" style="background:#12344d"></span>#12344D, moviy <span class="sw" style="background:#0089a8"></span>#0089A8, yashil <span class="sw" style="background:#1e9e4a"></span>#1E9E4A, qahrabo <span class="sw" style="background:#d08a00"></span>#D08A00, qizil <span class="sw" style="background:#c8102e"></span>#C8102E. Rang faqat holat uchun; gradient yo'q.</div>
+<div class="box"><b>Shrift.</b> Unbounded — raqamlar va sarlavhalar (keng, o'ziga xos); Onest — matn (MDH davlat portallari uchun yaratilgan). Raqamlar bir xil enda.<br>
+<b>Belgilar.</b> Solar Bold Duotone (480 Design, CC BY 4.0). Emoji yo'q.<br>
+<b>Shakl.</b> Burchak 3px, yumshoq soya yo'q, bo'limlar ingichka chiziq bilan ajratiladi, kartalar kam.<br>
+<b>Harakat.</b> Bitta lahza — sahifa ochilganda monitor chizig'i chiziladi; qolgan harakat faqat foydalanuvchi amaliga javob (yon oyna, tasdiq). Kursor ostida ko'tarilish yo'q.</div>
+</div>
+<p><b>Matn uslubi.</b> Qisqa, tabiiy o'zbekcha; sun'iy iboralar va bezak so'zlar yo'q; har jumla bitta fikr; texnik atama o'rniga tushunarli so'z. Ajratuvchi nuqta (·), tugmadagi strelka (→) va KATTA HARFLI yorliqlar ishlatilmaydi. <b>Ekranda izoh-yo'riqnoma matni bo'lmaydi</b> — interfeys o'zini belgi, joylashuv, rang va harakat orqali tushuntiradi. Yo'riqnoma faqat bo'sh holatda (masalan, hali guruh ulanmagan bo'lsa) va faqat bitta qisqa qadam bilan.</p>
+
+<h2>8. Turli ekranlarga moslashish</h2>
+<table>
+  <tr><th>Kenglik</th><th>Qoida</th></tr>
+  <tr><td>390 px (telefon)</td><td>Pastki menyu (5 belgi), bloklar bitta ustunda, kartalar pastdan chiqadi, Ofis barmoq bilan boshqariladi. Gorizontal aylantirish yo'q.</td></tr>
+  <tr><td>768 px (planshet)</td><td>Ikki ustun, tepada menyu belgilari.</td></tr>
+  <tr><td>1440 px (noutbuk)</td><td>Asosiy dizayn: birinchi ekranda Puls, qarorlar va ko'rsatkichlar aylantirmasdan ko'rinadi.</td></tr>
+  <tr><td>1920 px+ (TV)</td><td>Kattaroq shrift, TV rejimi.</td></tr>
+</table>
+
+<h2>9. Texnik qism</h2>
+<table>
+  <tr><th>Qism</th><th>Yechim</th></tr>
+  <tr><td>Bot</td><td>Python 3.12, aiogram 3. Guruh xabarlarini o'qiydi (maxfiylik rejimi o'chiq), reaksiya qo'yadi: ✍ vazifa, 👍 bajarildi, 👀 muammo, 🫡 muddat, 🤔 loyiha aniqlanmadi. Buyruqlar: /hisobot, /loyihalar, /bolim, /panel, /yordam. Brifing 09:00 va 19:00, kritik holatda darhol ogohlantirish.</td></tr>
+  <tr><td>Tushunish</td><td>1) Teg bo'lsa — qoida bilan (100% aniq). 2) Teg bo'lmasa — Gemini (faqat JSON, loyihani faqat ro'yxatdan tanlaydi). 3) AI ishlamasa — kalit so'zlar. Xabar tahrirlansa qayta hisoblanadi.</td></tr>
+  <tr><td>Server</td><td>FastAPI; bot va panel bitta jarayonda. Baza: SQLite (MVP), keyingi bosqichda PostgreSQL.</td></tr>
+  <tr><td>Panel</td><td>Freymvorksiz JavaScript (tez ochiladi), Chart.js grafiklar, SVG ofis sahnasi. Hamma fayl serverda — internetsiz tarmoqda ham ishlaydi.</td></tr>
+  <tr><td>Joylashuv</td><td>javi.uz/adliya/puls — alohida Docker konteyner, port faqat ichkarida, nginx orqali.</td></tr>
+  <tr><td>Jadvallar</td><td>chats, people (bo'lim bilan), projects, messages, tasks, blockers, <b>settings</b>, <b>decisions</b> (qarorlar jurnali), <b>corrections</b> (AI tuzatishlari).</td></tr>
+</table>
+
+<h2>10. Xavfsizlik va maxfiylik</h2>
+<ul>
+  <li>Panelga kirish 6 xonali kod bilan; 5 daqiqada 8 tadan ortiq xato urinish bloklanadi; cookie faqat server o'qiy oladigan (HttpOnly).</li>
+  <li>AI'ga faqat formatsiz xabar matni yuboriladi. Davlat ma'lumoti uchun keyingi bosqichda ichki serverdagi ochiq model.</li>
+  <li>Tizim faqat ish xabarlarini o'qiydi; baho faqat ishga oid dalillarga tayanadi.</li>
+  <li>Keyingi bosqich: rollar (rahbar, bo'lim boshlig'i), OneID orqali kirish, harakatlar jurnali.</li>
+</ul>
+
+<h2>11. Qabul qilish mezonlari</h2>
+<ol>
+  <li>5 soniyalik test o'tadi (3 kishidan 3 tasi).</li>
+  <li>Ekranlarda tushuntirish matni yo'q; yangi odam hech kim aytmasdan qarorni bajarib, xodim kartasini ochib, davrni o'zgartira oladi.</li>
+  <li>Har ekran 390 va 1440 px da: ustma-ust tushgan matn yo'q, gorizontal aylantirish yo'q, hamma tugma ishlaydi.</li>
+  <li>Bot 4 xil xabarni to'g'ri reaksiya bilan qabul qiladi; formatsiz 20 ta jonli xabarda kamida 19 tasi to'g'ri.</li>
+  <li>Test guruhga yozilgan xabar 5 soniyada panelda ko'rinadi, yurak urishi chizig'ida urish paydo bo'ladi.</li>
+  <li>"Bajarish" harakati: tasdiqdan keyin bot guruhga yozadi, vazifa ko'chadi, jurnalga tushadi, panel yangilanadi.</li>
+  <li>Vaqt mashinasi: o'tgan kunni tanlaganda raqamlar o'sha kunga mos keladi.</li>
+  <li>Holat va prognoz qoidalari avtomatik testlar bilan tekshirilgan.</li>
+  <li>Excel ochiladi, kirish kodi ishlaydi, kodsiz API yopiq.</li>
+</ol>
+
+<h2>12. Bosqichlar</h2>
+<table>
+  <tr><th>Bosqich</th><th>Tarkibi</th></tr>
+  <tr><td><b>1. MVP</b> — 22-oktyabr taqdimotigacha</td><td>Bot, tushunish (format + AI + kalit so'z), barcha ekranlar, Puls indeksi va jonli urish, qaror markazi, vaqt mashinasi, sozlamalar, AI tuzatish, Excel, import, TV, PIN, javi.uz'da ishlaydi, taqdimot slaydlari. Vaqt qolsa — jonli 3D ofis.</td></tr>
+  <tr><td><b>2. 1 oy</b></td><td>PostgreSQL, rollar va OneID, ovozli xabarni matnga aylantirish, GitLab/Jira bilan bog'lash (bajarilgan ishning kod orqali isboti), ichki serverda ochiq AI modeli, haftalik PDF hisobot.</td></tr>
+  <tr><td><b>3. 3 oy</b></td><td>Jonli 3D ofis (agar 1-bosqichda ulgurilmasa), kechikishni oldindan bashorat qiluvchi ML model, yig'ilgan tuzatishlar asosida fine-tuning, boshqarmalar reytingi.</td></tr>
+</table>
+
+<h2>13. Ochiq cheklovlar (taqdimotda halol aytiladi)</h2>
+<ul>
+  <li>Bot faqat qo'shilganidan keyingi xabarlarni ko'radi — oldingi tarix eksport fayli orqali yuklanadi.</li>
+  <li>Ovozli xabar, rasm va fayllar hozircha o'qilmaydi.</li>
+  <li>Baho faqat Telegramdagi hisobotlarga asoslanadi — ish sifatini to'liq o'lchamaydi.</li>
+  <li>AI tashqi xizmat (Gemini) — davlat ma'lumoti uchun ichki model kerak.</li>
+  <li>MVP'da bitta kirish kodi, rollar yo'q; baza bitta faylda.</li>
+</ul>
+
+<h2>14. Jamoa va mas'uliyat</h2>
+<table>
+  <tr><th>Kim</th><th>Mas'uliyat</th></tr>
+  <tr><td>Javohir</td><td>Arxitektura, bot va AI tushunish, panel, joylashtirish, taqdimotning texnik va kelajak qismi</td></tr>
+  <tr><td>Valijon</td><td>Ko'rsatkichlar va chegaralarni tekshirish, sinov ssenariylari, namuna ma'lumotlar</td></tr>
+  <tr><td>Asror</td><td>Panel sinovi (telefon va kompyuter), 5 soniyalik test, taqdimot slaydlari</td></tr>
+</table>
+
+<h2>15. Manbalar</h2>
+<ul class="src">
+  <li>Stephen Few. Information Dashboard Design. O'Reilly, 2006 (13 ta xato va "bir qarashda" tamoyili).</li>
+  <li>Ben Shneiderman. The Eyes Have It: A Task by Data Type Taxonomy for Information Visualizations. IEEE, 1996.</li>
+  <li>M. Weiser, J. S. Brown. Designing Calm Technology. Xerox PARC, 1995; Amber Case. Calm Technology. O'Reilly, 2015.</li>
+  <li>W. Doherty, A. Thadani. The Economic Value of Rapid Response Time. IBM Systems Journal, 1982; lawsofux.com.</li>
+  <li>N. Tractinsky, A. Katz, D. Ikar. What is beautiful is usable. Interacting with Computers, 2000; Tuch va b. (InfoQ, 2012).</li>
+  <li>J. Pracejus, G. Olsen, T. O'Guinn. How Nothing Became Something: White Space, Rhetoric, History and Meaning. J. Consumer Research, 2006; SJSU tezisi, 2013.</li>
+  <li>Management by Exception — CIO Wiki; Journal of Management Accounting Research, 2022.</li>
+  <li>Pre-attentive processing — Qlik Design Blog; The Data School; WellSky Engineering.</li>
+  <li>SaaSFrame. The Anatomy of High-Performance SaaS Dashboard Design: 2026 Trends.</li>
+</ul>
+</body>
+</html>

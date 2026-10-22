@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Puls — kirish</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f4f6f7">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%231c1c1e'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-family='Segoe UI,Arial,sans-serif' font-weight='700' font-size='20' fill='white'%3EP%3C/text%3E%3C/svg%3E">
+<link rel="preload" href="static/vendor/onest-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="static/puls.css">
+<script>
+  (function () { var t = null; try { t = localStorage.getItem("puls-theme"); } catch (e) {}
+    document.documentElement.setAttribute("data-theme", t === "dark" ? "dark" : "light"); })();
+</script>
+<style>
+  body { display: grid; place-items: center; min-height: 100vh; padding: 16px; }
+  .gate { width: min(400px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+  .in { padding: 26px 28px 24px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand b { font: 600 20px/1 var(--display); letter-spacing: -.02em; color: var(--ink); }
+  p { margin: 18px 0 18px; color: var(--text-2); font-size: 15px; }
+  .pins { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .pins input { width: 100%; height: 56px; min-width: 0; text-align: center; font: 600 22px var(--display); color: var(--ink);
+    border: 1px solid var(--line-2); border-radius: var(--r); background: var(--surface); }
+  .pins input:focus { outline: 2px solid var(--azure); outline-offset: -1px; border-color: transparent; }
+  .pins.bad input { border-color: var(--risk); }
+  .pins.bad { animation: shake .36s; }
+  @keyframes shake { 25%, 75% { transform: translateX(-5px); } 50% { transform: translateX(5px); } }
+  .msg { min-height: 22px; margin-top: 10px; font-size: 14px; color: var(--risk-ink); }
+  .foot { padding: 14px 28px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="gate" role="main">
+  <div class="in">
+    <div class="brand"><b>Puls</b></div>
+    <p>Panelga kirish kodini kiriting</p>
+    <form id="f" autocomplete="off">
+      <div class="pins" id="pins">
+        <input inputmode="numeric" maxlength="1" aria-label="1-raqam"><input inputmode="numeric" maxlength="1" aria-label="2-raqam">
+        <input inputmode="numeric" maxlength="1" aria-label="3-raqam"><input inputmode="numeric" maxlength="1" aria-label="4-raqam">
+        <input inputmode="numeric" maxlength="1" aria-label="5-raqam"><input inputmode="numeric" maxlength="1" aria-label="6-raqam">
+      </div>
+      <div class="msg" id="msg" role="alert"></div>
+    </form>
+  </div>
+  <div class="foot">Kod rahbar va mas'ul xodimlarda</div>
+</div>
+<script>
+  var ins = [].slice.call(document.querySelectorAll(".pins input")), busy = false;
+  ins[0].focus();
+  function code() { return ins.map(function (i) { return i.value; }).join(""); }
+  async function submit() {
+    if (busy) return; busy = true;
+    var r = await fetch("api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: code() }) });
+    busy = false;
+    if (r.ok) { location.href = "./"; return; }
+    var j = await r.json().catch(function () { return {}; });
+    document.getElementById("msg").textContent = j.detail || "Kod noto'g'ri";
+    var p = document.getElementById("pins"); p.classList.remove("bad"); void p.offsetWidth; p.classList.add("bad");
+    ins.forEach(function (i) { i.value = ""; }); ins[0].focus();
+  }
+  ins.forEach(function (inp, k) {
+    inp.addEventListener("input", function () {
+      inp.value = inp.value.replace(/\D/g, "").slice(-1);
+      if (inp.value && k < ins.length - 1) ins[k + 1].focus();
+      if (code().length === ins.length) submit();
+    });
+    inp.addEventListener("keydown", function (e) { if (e.key === "Backspace" && !inp.value && k) ins[k - 1].focus(); });
+    inp.addEventListener("paste", function (e) {
+      var t = (e.clipboardData.getData("text") || "").replace(/\D/g, "").slice(0, ins.length);
+      if (!t) return; e.preventDefault();
+      t.split("").forEach(function (c, i) { ins[i].value = c; });
+      if (t.length === ins.length) submit(); else ins[t.length].focus();
+    });
+  });
+  document.getElementById("f").addEventListener("submit", function (e) { e.preventDefault(); submit(); });
+</script>
+</body>
+</html>

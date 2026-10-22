@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Puls — taqdimot</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%231c1c1e'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-family='Segoe UI,Arial,sans-serif' font-weight='700' font-size='20' fill='white'%3EP%3C/text%3E%3C/svg%3E">
+<link rel="preload" href="static/vendor/onest-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="static/puls.css">
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #e3e8ec; }
+  .deck { position: fixed; inset: 0; display: grid; place-items: center; }
+  .frame { width: 1600px; height: 900px; position: relative; transform-origin: center; }
+  .slide { position: absolute; inset: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden;
+    padding: 80px 96px; display: flex; flex-direction: column; opacity: 0; transition: opacity .45s var(--ease); pointer-events: none; }
+  .slide.on { opacity: 1; pointer-events: auto; }
+  h1.big { font: 650 76px/1.08 var(--display); letter-spacing: -.035em; margin: 34px 0 0; max-width: 1250px; color: var(--ink); }
+  h2.st { font: 650 54px/1.12 var(--display); letter-spacing: -.03em; margin: 0; max-width: 1300px; color: var(--ink); }
+  .lead { font: 400 26px/1.5 var(--font); color: var(--text-2); margin: 26px 0 0; max-width: 1080px; }
+  .foot { margin-top: auto; display: flex; align-items: center; gap: 18px; font-size: 19px; color: var(--muted); }
+  .cols { display: grid; gap: 0; margin-top: 56px; border: 1px solid var(--line); }
+  .cols > * + * { border-left: 1px solid var(--line); }
+  .c3 { grid-template-columns: repeat(3, 1fr); } .c4 { grid-template-columns: repeat(4, 1fr); } .c5 { grid-template-columns: repeat(5, 1fr); } .c2 { grid-template-columns: 1fr 1fr; }
+  .box { padding: 32px; }
+  .box .ic { width: 56px; height: 56px; }
+  .box .ic .i { width: 30px; height: 30px; }
+  .box h3 { font: 600 26px/1.2 var(--display); letter-spacing: -.025em; margin: 24px 0 10px; color: var(--ink); }
+  .box p { font-size: 20px; line-height: 1.5; color: var(--text-2); margin: 0; }
+  .num-big { font: 600 64px/1 var(--display); letter-spacing: -.05em; color: var(--ink); }
+  .flow3 { display: grid; grid-template-columns: 1fr 70px 1fr 70px 1fr; align-items: stretch; margin-top: 64px; }
+  .flow3 .box { border: 1px solid var(--line); }
+  .flow3 .arr { display: grid; place-items: center; color: var(--muted); }
+  .flow3 .arr .i { width: 40px; height: 40px; }
+  .msg { padding: 26px 28px; font-size: 23px; color: var(--text); }
+  .msg small { display: block; font-size: 16px; color: var(--muted); margin-bottom: 10px; }
+  .res { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  .res .pill { height: 34px; font-size: 16px; padding: 0 12px; }
+  .shot { border: 1px solid var(--line); overflow: hidden; background: var(--surface-2); }
+  .shot img { display: block; width: 100%; }
+  .stages { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 54px; border: 1px solid var(--line); }
+  .stages > div { padding: 30px 32px; }
+  .stages > div + div { border-left: 1px solid var(--line); }
+  .stage-n { font: 600 22px var(--display); color: var(--azure-ink); }
+  .stages h3 { font: 600 30px var(--display); letter-spacing: -.03em; margin: 8px 0 14px; color: var(--ink); }
+  .stages ul { margin: 0; padding-left: 22px; }
+  .stages li { font-size: 20px; line-height: 1.5; color: var(--text-2); margin: 6px 0; }
+  .lim { display: grid; grid-template-columns: 1fr 1fr; margin-top: 50px; border: 1px solid var(--line); }
+  .lim > div { display: flex; gap: 16px; align-items: flex-start; padding: 24px 28px; }
+  .lim > div:nth-child(even) { border-left: 1px solid var(--line); }
+  .lim > div:nth-child(n + 3) { border-top: 1px solid var(--line); }
+  .lim .i { width: 28px; height: 28px; color: var(--muted); flex: none; margin-top: 3px; }
+  .lim b { display: block; font: 600 22px var(--display); color: var(--ink); letter-spacing: -.02em; }
+  .lim span { color: var(--text-2); font-size: 19px; }
+  .cta { display: inline-flex; align-items: center; gap: 14px; height: 70px; padding: 0 30px; border-radius: var(--r); font: 600 24px var(--display); color: #fff; background: var(--ink); }
+  .cta:hover { background: color-mix(in srgb, var(--ink) 86%, var(--azure)); }
+  .cta.line { background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); }
+  .cta .i { width: 30px; height: 30px; }
+  .team { display: flex; gap: 12px; margin-top: 36px; }
+  .team span { display: inline-flex; align-items: center; gap: 12px; padding: 8px 16px 8px 8px; border: 1px solid var(--line); font-size: 20px; font-weight: 600; color: var(--ink); }
+  .team .ava { width: 40px; height: 40px; font-size: 15px; }
+  .principles { display: grid; grid-template-columns: 1fr 1fr; margin-top: 50px; border: 1px solid var(--line); }
+  .principles > div { display: grid; grid-template-columns: 56px 1fr; gap: 20px; padding: 28px 30px; }
+  .principles > div:nth-child(even) { border-left: 1px solid var(--line); }
+  .principles > div:nth-child(n + 3) { border-top: 1px solid var(--line); }
+  .principles h3 { font: 600 25px var(--display); margin: 0 0 6px; color: var(--ink); letter-spacing: -.02em; }
+  .principles p { font-size: 19px; color: var(--text-2); margin: 0; line-height: 1.5; }
+  .principles .src2 { font-size: 15px; color: var(--muted); margin-top: 6px; }
+  .tgm { border: 1px solid var(--line); background: var(--surface-2); padding: 28px; display: flex; flex-direction: column; gap: 14px; }
+  .tgm-msg { max-width: 94%; padding: 16px 20px; background: var(--surface); border: 1px solid var(--line); font-size: 20px; line-height: 1.45; color: var(--text); }
+  .tgm-msg small { display: block; font: 600 15px var(--font); color: var(--azure-ink); margin-bottom: 6px; }
+  .tgm-msg b { color: var(--ink); }
+  .tgm-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 14px; }
+  .tgm-btns span { display: grid; place-items: center; height: 46px; background: var(--azure-soft); color: var(--azure-ink); font: 600 17px var(--font); }
+  .tgm-btns .w { grid-column: 1 / -1; }
+  .seq { border: 1px solid var(--line); align-self: start; }
+  .seq > div { display: grid; grid-template-columns: 52px 1fr; gap: 16px; padding: 26px 28px; }
+  .seq > div + div { border-top: 1px solid var(--line); }
+  .seq .n { font: 600 34px/1 var(--display); color: var(--azure-ink); }
+  .seq h3 { font: 600 24px/1.2 var(--display); margin: 0 0 8px; color: var(--ink); letter-spacing: -.02em; }
+  .seq p { font-size: 19px; line-height: 1.5; color: var(--text-2); margin: 0; }
+  .ui { position: fixed; z-index: 10; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--r); padding: 6px; }
+  .count { font: 600 14px var(--font); color: var(--muted); min-width: 56px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="deck"><div class="frame" id="frame">
+
+  <section class="slide">
+    <div style="display:flex;align-items:center;gap:16px"><b style="font:600 40px var(--display);letter-spacing:-.03em;color:var(--ink)">Puls</b></div>
+    <h1 class="big">Tashkilot holati rahbar ko'z o'ngida.</h1>
+    <div class="team"><span><i class="ava" style="--fc:#12344d">JJ</i>Javohir Jumaboyev</span><span><i class="ava" style="--fc:#0089a8">V</i>Valijon</span><span><i class="ava" style="--fc:#1e9e4a">A</i>Asror</span></div>
+    <div class="foot">Adliya AKT markazi, Task 1, 22-oktyabr 2026</div>
+  </section>
+
+  <section class="slide">
+    <h2 class="st">Ish Telegramda yuradi.<br>Rahbar esa uni ko'rmaydi.</h2>
+    <div class="cols c3">
+      <div class="box"><span class="ic lv2"><svg class="i"><use href="static/vendor/icons.svg#i-chat-dots"/></svg></span><h3>Kuniga yuzlab xabar</h3><p>Bir guruhda bir nechta loyiha aralash yuradi, hammasini o'qishga vaqt yo'q.</p></div>
+      <div class="box"><span class="ic lv3"><svg class="i"><use href="static/vendor/icons.svg#i-hourglass"/></svg></span><h3>Kechikish kech bilinadi</h3><p>Loyiha muddatga ulgurmasligi muddat o'tgandan keyin ma'lum bo'ladi.</p></div>
+      <div class="box"><span class="ic lv1"><svg class="i"><use href="static/vendor/icons.svg#i-people"/></svg></span><h3>Jamoa ko'rinmaydi</h3><p>Kim ortiqcha yuklangan, kim bo'sh, kim hisobot bermayapti, noma'lum.</p></div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2 class="st">Xodimlar odatdagidek yozadi.<br>Rahbar holatni 5 soniyada biladi.</h2>
+    <div class="flow3">
+      <div class="box"><span class="ic" style="--ls:#e6f2fa;--lc:#2a8bc4"><svg class="i"><use href="static/vendor/icons.svg#i-send"/></svg></span><h3>Telegram guruh</h3><p>Vazifa, bajarilgan ish, muammo. Oddiy xabar yoki #teg bilan.</p></div>
+      <span class="arr"><svg class="i"><use href="static/vendor/icons.svg#i-arrow"/></svg></span>
+      <div class="box"><span class="ic" style="--ls:var(--azure-soft);--lc:var(--azure)"><svg class="i"><use href="static/vendor/icons.svg#i-stars"/></svg></span><h3>Bot va AI</h3><p>Har xabarni o'qiydi, tushunadi va reaksiya bilan tasdiqlaydi.</p></div>
+      <span class="arr"><svg class="i"><use href="static/vendor/icons.svg#i-arrow"/></svg></span>
+      <div class="box"><span class="ic lv0"><svg class="i"><use href="static/vendor/icons.svg#i-brifing"/></svg></span><h3>Rahbar paneli</h3><p>Holat, xavf, prognoz va tayyor qaror. Bir sahifada, jonli.</p></div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2 class="st">Teg bo'lsa, natija aniq.<br>Teg bo'lmasa, AI tushunadi.</h2>
+    <div class="cols c2" style="margin-top:46px">
+      <div class="msg"><small>Xodim yozadi</small>#done #Portal Login sahifasi
+        <div class="res"><span class="pill p-ok">Bajarildi</span><span class="pill p-l1">Yangi portal</span><span class="pill p-l1">Teg bo'yicha</span></div></div>
+      <div class="msg"><small>Xodim yozadi</small>Portal: login sahifasi tayyor bo'ldi, testga berdim
+        <div class="res"><span class="pill p-ok">Bajarildi</span><span class="pill p-l1">Yangi portal</span><span class="pill" style="--ps:var(--azure-soft);--pk:var(--azure-ink)">AI tushundi</span></div></div>
+    </div>
+    <div class="cols c3" style="margin-top:24px">
+      <div class="box"><div class="num-big">422/422</div><p style="margin-top:14px">formatsiz namuna xabarning hammasi to'g'ri tushunildi</p></div>
+      <div class="box"><div class="num-big">3 s</div><p style="margin-top:14px">ichida bot xabarga reaksiya qo'yadi, xodim tushunilganini ko'radi</p></div>
+      <div class="box"><div class="num-big">0</div><p style="margin-top:14px">qo'shimcha ish xodim uchun: panelga kirmaydi, odatdagidek yozadi</p></div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2 class="st" style="font-size:50px">Bir qarashda holat. Bir bosishda qaror.</h2>
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:20px;margin-top:38px;height:600px">
+      <div class="shot"><img src="static/slides/brifing.png" alt="Brifing ekrani" style="height:100%;object-fit:cover;object-position:top left"></div>
+      <div style="display:grid;grid-template-rows:1fr 1fr;gap:20px;min-height:0">
+        <div class="shot"><img src="static/slides/ofis.png" alt="Ofis ekrani" style="height:100%;object-fit:cover;object-position:top left"></div>
+        <div class="shot"><img src="static/slides/xodim.png" alt="Xodim kartasi" style="height:100%;object-fit:cover;object-position:top right"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2 class="st" style="font-size:50px">Rahbar uchun qurilgan dizayn.</h2>
+    <div class="principles">
+      <div><span class="ic" style="--ls:var(--azure-soft);--lc:var(--azure)"><svg class="i"><use href="static/vendor/icons.svg#i-eye"/></svg></span><div><h3>Bir qarashda javob</h3><p>Tepada asosiy raqamlar, ostida qaror kutayotgan masalalar.</p><div class="src2">Stephen Few, Information Dashboard Design</div></div></div>
+      <div><span class="ic lv3"><svg class="i"><use href="static/vendor/icons.svg#i-danger"/></svg></span><div><h3>Rang faqat istisnoda</h3><p>Me'yordagi narsa sokin, rang faqat aralashuv kerak joyda.</p><div class="src2">Management by exception</div></div></div>
+      <div><span class="ic lv1"><svg class="i"><use href="static/vendor/icons.svg#i-info"/></svg></span><div><h3>Har raqamning sababi</h3><p>Bosilsa formula va dalil ochiladi. Ishonch shaffoflikdan.</p><div class="src2">Shneiderman, The Eyes Have It</div></div></div>
+      <div><span class="ic lv0"><svg class="i"><use href="static/vendor/icons.svg#i-bolt"/></svg></span><div><h3>Hisobot emas, harakat</h3><p>Har muammo yonida tayyor qaror tugmasi.</p><div class="src2">Calm technology, Weiser va Brown</div></div></div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2 class="st" style="font-size:50px">Kuzatishdan boshqarishga.</h2>
+    <div class="cols c5" style="margin-top:46px">
+      <div class="box" style="padding:26px"><span class="ic" style="--ls:var(--azure-soft);--lc:var(--azure)"><svg class="i"><use href="static/vendor/icons.svg#i-transfer"/></svg></span><h3 style="font-size:22px">Qaror markazi</h3><p style="font-size:18px">Vazifani o'tkazish, muddatni surish. Bot guruhga o'zi yozadi.</p></div>
+      <div class="box" style="padding:26px"><span class="ic" style="--ls:var(--azure-soft);--lc:var(--azure)"><svg class="i"><use href="static/vendor/icons.svg#i-letter"/></svg></span><h3 style="font-size:22px">Shaxsiy eslatma</h3><p style="font-size:18px">Xodim havola orqali ulanadi, eslatma unga shaxsan boradi.</p></div>
+      <div class="box" style="padding:26px"><span class="ic lv3"><svg class="i"><use href="static/vendor/icons.svg#i-flag"/></svg></span><h3 style="font-size:22px">Real muddat</h3><p style="font-size:18px">Hozirgi sur'atda loyiha qachon tugashi, sanasi bilan.</p></div>
+      <div class="box" style="padding:26px"><span class="ic lv2"><svg class="i"><use href="static/vendor/icons.svg#i-history"/></svg></span><h3 style="font-size:22px">Vaqt mashinasi</h3><p style="font-size:18px">Istalgan o'tgan kunning holati, 30 kunni ijro etish.</p></div>
+      <div class="box" style="padding:26px"><span class="ic lv0"><svg class="i"><use href="static/vendor/icons.svg#i-office"/></svg></span><h3 style="font-size:22px">Jonli ofis</h3><p style="font-size:18px">Xodimlar stolda: belgi holatni, qog'oz uyumi yuklamani ko'rsatadi.</p></div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2 class="st" style="font-size:50px">Ortiqcha yuklama vazifa berilayotganda to'xtaydi.</h2>
+    <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:28px;margin-top:44px">
+      <div class="tgm">
+        <div class="tgm-msg"><small>Aziz Karimov</small>#task #Portal Login API @sardor</div>
+        <div class="tgm-msg"><small>Puls</small><b>Sardor Tursunov: ishi ko'p</b><br>7 ta ochiq vazifa, 2 haftada 25 ta berilgan. Jamoada o'rtacha 6 ta.<br>
+          Yangi: «Login API».<br>Backend bo'limida bo'shroq: Bekzod Aliyev, ochiq vazifasi yo'q; Ilhom Qodirov, 1 ta ochiq.
+          <div class="tgm-btns"><span>Bekzodga berish</span><span>Ilhomga berish</span><span class="w">Sardorda qolsin</span></div></div>
+      </div>
+      <div class="seq">
+        <div><span class="n">1</span><div><h3>Yuklama tekshiriladi</h3><p>Vazifa yozilishi bilan bot xodimning ochiq ishlarini jamoa o'rtachasi bilan solishtiradi.</p></div></div>
+        <div><span class="n">2</span><div><h3>Shu bo'limdan tavsiya</h3><p>Ishi ko'p bo'lsa, o'sha yo'nalishdagi eng bo'sh hamkasbni taklif qiladi.</p></div></div>
+        <div><span class="n">3</span><div><h3>Qaror jurnalga tushadi</h3><p>Tugmani vazifa bergan kishi yoki rahbar bosadi. «Qolsin» degani ham rahbarga ko'rinadi.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" style="justify-content:center">
+    <h2 class="st">Guruhga yozamiz.<br>5 soniyada panelda ko'rinadi.</h2>
+    <p class="lead">Test guruhga xabar yuboriladi: bot reaksiya qo'yadi, paneldagi raqamlar o'zgaradi.</p>
+    <div style="display:flex;gap:14px;margin-top:44px"><a class="cta" href="./" target="_blank" rel="noopener"><svg class="i"><use href="static/vendor/icons.svg#i-brifing"/></svg>Panelni ochish</a>
+      <a class="cta line" href="./#/ofis" target="_blank" rel="noopener"><svg class="i"><use href="static/vendor/icons.svg#i-office"/></svg>Ofisni ochish</a></div>
+  </section>
+
+  <section class="slide">
+    <h2 class="st" style="font-size:50px">Bu MVP nimani hali qilmaydi.</h2>
+    <div class="lim">
+      <div><svg class="i"><use href="static/vendor/icons.svg#i-history"/></svg><p style="margin:0"><b>Bot qo'shilgunga qadar tarix</b><span>Faqat Telegram eksport fayli orqali yuklanadi</span></p></div>
+      <div><svg class="i"><use href="static/vendor/icons.svg#i-mic"/></svg><p style="margin:0"><b>Ovozli xabar va fayllar</b><span>Hozircha o'qilmaydi</span></p></div>
+      <div><svg class="i"><use href="static/vendor/icons.svg#i-cup-star"/></svg><p style="margin:0"><b>Ish sifati</b><span>Baho hisobotlarga tayanadi, kod va xatolar tizimi ulanmagan</span></p></div>
+      <div><svg class="i"><use href="static/vendor/icons.svg#i-shield"/></svg><p style="margin:0"><b>Tashqi AI</b><span>Gemini ishlatiladi, davlat ma'lumoti uchun ichki model kerak</span></p></div>
+      <div><svg class="i"><use href="static/vendor/icons.svg#i-lock"/></svg><p style="margin:0"><b>Kirish</b><span>Panelga bitta kod bilan kiriladi, rahbar roli hozircha faqat botda</span></p></div>
+      <div><svg class="i"><use href="static/vendor/icons.svg#i-server"/></svg><p style="margin:0"><b>Baza</b><span>Bitta fayl (SQLite), katta tashkilot uchun PostgreSQL</span></p></div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2 class="st" style="font-size:50px">MVP'dan tizimgacha.</h2>
+    <div class="stages">
+      <div><div class="stage-n">1-bosqich</div><h3>1 oy</h3><ul><li>PostgreSQL, rollar, OneID</li><li>Ovozli xabarni matnga aylantirish</li><li>GitLab va Jira bilan bog'lash</li><li>Haftalik PDF hisobot</li></ul></div>
+      <div><div class="stage-n">2-bosqich</div><h3>3 oy</h3><ul><li>Ichki serverdagi ochiq AI modeli, ma'lumot tashqariga chiqmaydi</li><li>Yig'ilgan tuzatishlar asosida fine-tuning</li><li>Jonli 3D ofis</li></ul></div>
+      <div><div class="stage-n">3-bosqich</div><h3>6 oy</h3><ul><li>Kechikishni oldindan bashorat qiluvchi model</li><li>Boshqarmalar kesimida reyting</li><li>Telegram Mini App</li></ul></div>
+    </div>
+  </section>
+
+  <section class="slide" style="justify-content:center">
+    <h1 class="big" style="margin:0;font-size:68px">Rahbar vaqtini tejaydi.<br>Muammoni oldindan ko'radi.<br>Qarorni bir bosishda bajaradi.</h1>
+    <p class="lead">Rahmat. Savollaringizga tayyormiz.</p>
+  </section>
+
+</div></div>
+
+<div class="ui"><button class="icon-btn" id="prev" aria-label="Oldingi"><svg class="i"><use href="static/vendor/icons.svg#i-arrow-left"/></svg></button>
+  <span class="count" id="count"></span>
+  <button class="icon-btn" id="next" aria-label="Keyingi"><svg class="i"><use href="static/vendor/icons.svg#i-arrow"/></svg></button>
+  <button class="icon-btn" id="fs" aria-label="To'liq ekran"><svg class="i"><use href="static/vendor/icons.svg#i-fit"/></svg></button></div>
+
+<script>
+  var slides = [].slice.call(document.querySelectorAll(".slide")), cur = 0;
+  function show(i) {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function (s, k) { s.classList.toggle("on", k === cur); });
+    document.getElementById("count").textContent = (cur + 1) + " / " + slides.length;
+    history.replaceState(null, "", "#" + (cur + 1));
+  }
+  function fit() {
+    var f = document.getElementById("frame"), k = Math.min((innerWidth - 40) / 1600, (innerHeight - 90) / 900);
+    f.style.transform = "scale(" + Math.max(.2, k) + ")";
+  }
+  document.getElementById("prev").onclick = function () { show(cur - 1); };
+  document.getElementById("next").onclick = function () { show(cur + 1); };
+  document.getElementById("fs").onclick = function () { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); };
+  addEventListener("keydown", function (e) {
+    if (["ArrowRight", "PageDown", " "].indexOf(e.key) >= 0) { e.preventDefault(); show(cur + 1); }
+    if (["ArrowLeft", "PageUp"].indexOf(e.key) >= 0) { e.preventDefault(); show(cur - 1); }
+    if (e.key === "Home") show(0);
+    if (e.key === "End") show(slides.length - 1);
+    if (e.key === "f") document.getElementById("fs").click();
+  });
+  var x0 = null;
+  addEventListener("touchstart", function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+  addEventListener("touchend", function (e) { if (x0 === null) return; var dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1)); x0 = null; });
+  addEventListener("resize", fit);
+  fit(); show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+</script>
+</body>
+</html>

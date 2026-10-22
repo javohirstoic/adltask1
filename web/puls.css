@@ -667,7 +667,7 @@ body.tv main, body.tv .top-in { max-width: none; }
   .t .hide-m { display: none; }
   .tm { left: 16px; right: 16px; top: auto; bottom: calc(76px + env(safe-area-inset-bottom)); width: auto; }
   .drawer .sheet { top: auto; left: 0; width: 100%; max-height: 92vh; border-left: 0; border-top: 1px solid var(--line); transform: translateY(104%); }
-  .bnav { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; background: var(--surface);
+  .bnav { display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; background: var(--surface);
     border-top: 1px solid var(--line); padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); }
   .bnav button { display: grid; justify-items: center; gap: 2px; font-size: 11.5px; font-weight: 560; color: var(--muted); padding: 6px 0; position: relative; }
   .bnav button .i { width: 23px; height: 23px; }
@@ -685,3 +685,44 @@ body.tv main, body.tv .top-in { max-width: none; }
 .name-edit .i { width: 15px; height: 15px; color: var(--muted); }
 .name-form { display: flex; gap: 8px; align-items: center; width: 100%; max-width: 420px; }
 .name-form .ctl { flex: 1; min-width: 0; height: 36px; font-size: 16px; font-weight: 600; }
+
+/* ================= Ma'lumotlar (CRUD) ================= */
+.dt-tabs { overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; }
+.dt-tabs .seg { min-width: max-content; }
+.dt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
+.dt-q { flex: 1 1 220px; max-width: 340px; padding: 0 12px; }
+.dt-count { margin-left: auto; font-size: 13.5px; color: var(--muted); }
+.t.dt td { vertical-align: top; }
+.dt-sub { margin-top: 2px; font-size: 12.5px; color: var(--muted); }
+.dt-nil { color: var(--muted); }
+.dt-clip { display: inline-block; max-width: 460px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.dt-act { white-space: nowrap; text-align: right; }
+.dt-act .icon-btn { display: inline-grid; width: 32px; height: 32px; margin-left: 4px; }
+.dt-act .icon-btn .i { width: 17px; height: 17px; }
+.dt-danger:hover { color: var(--risk-ink); border-color: var(--risk); }
+.dt-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; font-size: 14px; color: var(--text-2); }
+.dt-hint { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.dt-err { min-height: 20px; margin-top: 6px; font-size: 14px; color: var(--risk-ink); }
+#dtForm .checks { margin-top: 4px; }
+@media (max-width: 720px) { .t.dt td { white-space: nowrap; } .dt-act { position: sticky; right: 0; background: var(--surface); box-shadow: -8px 0 8px -8px rgba(0, 0, 0, .18); } .dt-clip { max-width: 220px; } .dt-q { max-width: none; } .dt-count { margin-left: 0; } }
+
+/* ================= rol, "Kim qancha qildi" ================= */
+.menu-me { display: grid; padding: 8px 14px 6px; }
+.menu-me b { font-weight: 620; color: var(--ink); }
+.menu-me span { font-size: 12.5px; color: var(--muted); }
+.menu [hidden] { display: none; }
+.tp { border-bottom: 1px solid var(--line); }
+.tp:last-child { border-bottom: 0; }
+.tp summary { display: grid; grid-template-columns: minmax(0, 1fr) 96px 44px; align-items: center; gap: 12px; padding: 11px 0; cursor: pointer; list-style: none; }
+.tp summary::-webkit-details-marker { display: none; }
+.tp-n { display: grid; min-width: 0; }
+.tp-n b { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-n small { font-size: 12.5px; color: var(--muted); }
+.tp-n em { font-style: normal; color: var(--risk-ink); }
+.tp-bar { height: 7px; background: var(--surface-3); overflow: hidden; border-radius: 4px; }
+.tp-bar i { display: block; height: 100%; background: var(--ok); }
+.tp-p { text-align: right; font-weight: 640; }
+.tp-st { display: flex; flex-wrap: wrap; gap: 16px; padding: 0 0 8px; font-size: 13px; color: var(--muted); }
+.tp-st b { color: var(--ink); font-weight: 600; }
+.tp[open] summary { padding-bottom: 6px; }
+.dt-info { min-height: 40px; display: flex; align-items: center; padding: 0 12px; border-radius: var(--r); background: var(--surface-2); color: var(--text-2); }

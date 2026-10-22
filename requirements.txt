@@ -1,7 +1,7 @@
+django
+djangorestframework
+django-environ
+whitenoise
 aiogram==3.31.0
-fastapi==0.151.0
-uvicorn==0.54.0
-python-multipart
 openpyxl
 google-auth
-requests

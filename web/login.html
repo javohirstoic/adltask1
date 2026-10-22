@@ -20,12 +20,12 @@
   .brand { display: flex; align-items: center; gap: 12px; }
   .brand b { font: 600 20px/1 var(--display); letter-spacing: -.02em; color: var(--ink); }
   p { margin: 18px 0 18px; color: var(--text-2); font-size: 15px; }
-  .pins { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-  .pins input { width: 100%; height: 56px; min-width: 0; text-align: center; font: 600 22px var(--display); color: var(--ink);
+  .field { display: block; margin-bottom: 12px; font-size: 13.5px; color: var(--muted); }
+  .field input { display: block; width: 100%; height: 48px; margin-top: 6px; padding: 0 14px; font: 500 16px var(--display); color: var(--ink);
     border: 1px solid var(--line-2); border-radius: var(--r); background: var(--surface); }
-  .pins input:focus { outline: 2px solid var(--azure); outline-offset: -1px; border-color: transparent; }
-  .pins.bad input { border-color: var(--risk); }
-  .pins.bad { animation: shake .36s; }
+  .field input:focus { outline: 2px solid var(--azure); outline-offset: -1px; border-color: transparent; }
+  .btn { width: 100%; height: 48px; margin-top: 6px; font: 600 15px var(--display); color: #fff; background: var(--ink); border: 0; border-radius: var(--r); cursor: pointer; }
+  .gate.bad { animation: shake .36s; }
   @keyframes shake { 25%, 75% { transform: translateX(-5px); } 50% { transform: translateX(5px); } }
   .msg { min-height: 22px; margin-top: 10px; font-size: 14px; color: var(--risk-ink); }
   .foot { padding: 14px 28px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--muted); }
@@ -35,46 +35,30 @@
 <div class="gate" role="main">
   <div class="in">
     <div class="brand"><b>Puls</b></div>
-    <p>Panelga kirish kodini kiriting</p>
-    <form id="f" autocomplete="off">
-      <div class="pins" id="pins">
-        <input inputmode="numeric" maxlength="1" aria-label="1-raqam"><input inputmode="numeric" maxlength="1" aria-label="2-raqam">
-        <input inputmode="numeric" maxlength="1" aria-label="3-raqam"><input inputmode="numeric" maxlength="1" aria-label="4-raqam">
-        <input inputmode="numeric" maxlength="1" aria-label="5-raqam"><input inputmode="numeric" maxlength="1" aria-label="6-raqam">
-      </div>
+    <p>Panelga kirish</p>
+    <form id="f" autocomplete="on">
+      <label class="field">Login<input id="u" name="username" autocomplete="username" required autofocus></label>
+      <label class="field">Parol<input id="pw" name="password" type="password" autocomplete="current-password" required></label>
       <div class="msg" id="msg" role="alert"></div>
+      <button class="btn" type="submit">Kirish</button>
     </form>
   </div>
-  <div class="foot">Kod rahbar va mas'ul xodimlarda</div>
+  <div class="foot">Login va parolni administrator beradi</div>
 </div>
 <script>
-  var ins = [].slice.call(document.querySelectorAll(".pins input")), busy = false;
-  ins[0].focus();
-  function code() { return ins.map(function (i) { return i.value; }).join(""); }
+  var busy = false;
+  function csrf() { return (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || ""; }
   async function submit() {
     if (busy) return; busy = true;
-    var r = await fetch("api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: code() }) });
+    var r = await fetch("api/login", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
+      body: JSON.stringify({ username: document.getElementById("u").value.trim(), password: document.getElementById("pw").value }) });
     busy = false;
     if (r.ok) { location.href = "./"; return; }
     var j = await r.json().catch(function () { return {}; });
-    document.getElementById("msg").textContent = j.detail || "Kod noto'g'ri";
-    var p = document.getElementById("pins"); p.classList.remove("bad"); void p.offsetWidth; p.classList.add("bad");
-    ins.forEach(function (i) { i.value = ""; }); ins[0].focus();
+    document.getElementById("msg").textContent = r.status === 429 ? "Ko'p urinish. Birozdan keyin qayta urinib ko'ring." : (j.detail || "Kirib bo'lmadi");
+    var g = document.querySelector(".gate"); g.classList.remove("bad"); void g.offsetWidth; g.classList.add("bad");
+    document.getElementById("pw").value = ""; document.getElementById("pw").focus();
   }
-  ins.forEach(function (inp, k) {
-    inp.addEventListener("input", function () {
-      inp.value = inp.value.replace(/\D/g, "").slice(-1);
-      if (inp.value && k < ins.length - 1) ins[k + 1].focus();
-      if (code().length === ins.length) submit();
-    });
-    inp.addEventListener("keydown", function (e) { if (e.key === "Backspace" && !inp.value && k) ins[k - 1].focus(); });
-    inp.addEventListener("paste", function (e) {
-      var t = (e.clipboardData.getData("text") || "").replace(/\D/g, "").slice(0, ins.length);
-      if (!t) return; e.preventDefault();
-      t.split("").forEach(function (c, i) { ins[i].value = c; });
-      if (t.length === ins.length) submit(); else ins[t.length].focus();
-    });
-  });
   document.getElementById("f").addEventListener("submit", function (e) { e.preventDefault(); submit(); });
 </script>
 </body>

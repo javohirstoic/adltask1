@@ -29,6 +29,8 @@
       <div class="menu" id="menu">
         <button class="icon-btn" id="menuBtn" aria-label="Menyu" aria-haspopup="true"><svg class="i" aria-hidden="true"><use href="static/vendor/icons.svg#i-more"/></svg></button>
         <div class="pop" role="menu">
+          <div class="menu-me" id="meMenu"></div>
+          <hr>
           <button data-m="excel"><svg class="i"><use href="static/vendor/icons.svg#i-download"/></svg>Excel hisobot</button>
           <button data-m="import"><svg class="i"><use href="static/vendor/icons.svg#i-upload"/></svg>Guruh tarixini yuklash</button>
           <button data-m="settings"><svg class="i"><use href="static/vendor/icons.svg#i-tuning"/></svg>Sozlamalar</button>
@@ -38,6 +40,8 @@
           <button data-m="guide"><svg class="i"><use href="static/vendor/icons.svg#i-help"/></svg>Guruhda yozish formati</button>
           <button data-m="keys"><svg class="i"><use href="static/vendor/icons.svg#i-keyboard"/></svg>Tezkor tugmalar</button>
           <button data-m="theme" id="themeItem"></button>
+          <hr>
+          <button data-m="logout"><svg class="i"><use href="static/vendor/icons.svg#i-logout"/></svg>Chiqish</button>
         </div>
       </div>
     </div>
@@ -51,6 +55,7 @@
   <section class="view" id="v-xodimlar"></section>
   <section class="view" id="v-loyihalar"></section>
   <section class="view" id="v-bolimlar"></section>
+  <section class="view" id="v-malumotlar"></section>
 </main>
 
 <nav class="bnav" id="bnav" aria-label="Bo'limlar"></nav>
@@ -62,6 +67,7 @@
 
 <script src="static/vendor/chart.umd.min.js"></script>
 <script src="static/office.js"></script>
+<script src="static/data.js"></script>
 <script src="static/puls.js"></script>
 </body>
 </html>

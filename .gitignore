@@ -20,3 +20,12 @@ ai_cache.json
 __pycache__/
 *.pyc
 .pytest_cache/
+
+db.sqlite3
+
+# Django
+staticfiles/
+db.sqlite3
+
+# Vosita papkalari
+.brud/

@@ -1,6 +1,6 @@
 from datetime import date
 
-from puls.parser import extract_items, match_score, parse_date, parse_format, parse_free
+from ingest.parser import extract_items, match_score, parse_date, parse_format, parse_free
 
 TODAY = date(2026, 10, 20)
 PROJECTS = [

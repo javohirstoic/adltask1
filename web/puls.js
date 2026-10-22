@@ -19,6 +19,11 @@ const first = (n) => String(n || "").split(" ")[0];
 const ageState = (t) => t.state || (t.age < 3 ? "new" : t.age < 7 ? "slow" : "stuck");
 const dueText = (t) => t.due_in == null ? t.age + " kun" : t.due_in < 0 ? -t.due_in + " kun kechikdi" : t.due_in === 0 ? "bugun" : t.due_label + "gacha";
 const dueTag = (t, style) => `<span class="age ${t.due_in == null ? ageState(t) : t.due_in < 0 ? "stuck" : t.due_in <= 1 ? "slow" : "new"}"${style ? ` style="${style}"` : ""}${t.due_in != null ? ` title="Muddat: ${t.due_label}"` : ""}>${dueText(t)}</span>`;
+// Rol: /api/meta -> me. Ruxsatlarni server hal qiladi, bu yerda faqat keraksiz tugmalar ko'rsatilmaydi
+const ME = () => S.meta?.me || {};
+const isRole = (...r) => r.includes(ME().role);
+const canAct = () => isRole("admin", "rahbar");   // qarorlar, guruhga xabar, shaxsiy aloqa, AI tuzatish
+const can = (res, letter) => (ME().access?.[res] || "").includes(letter);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function ago(ts) {
@@ -52,8 +57,9 @@ const SRC = { ai: ["AI", "stars"], format: ["Teg", ""], taxmin: ["Kalit so'z", "
 const TABS = [
   ["brifing", "brifing", "Brifing", "brifing"], ["ofis", "ofis", "Ofis", "office"], ["xodimlar", "xodimlar", "Xodimlar", "people"],
   ["loyihalar", "loyihalar", "Loyihalar", "projects"], ["bolimlar", "bolimlar", "Bo'limlar", "depts"],
+  ["malumotlar", "malumotlar", "Ma'lumotlar", "doc"],
 ];
-const EXPORT_VIEW = { brifing: "projects", ofis: "people", xodimlar: "people", loyihalar: "projects", bolimlar: "departments" };
+const EXPORT_VIEW = { brifing: "projects", ofis: "people", xodimlar: "people", loyihalar: "projects", bolimlar: "departments", malumotlar: "projects" };
 
 /* ================= holat ================= */
 const S = {
@@ -92,13 +98,21 @@ function query(extra) {
 }
 
 /* ================= ma'lumot ================= */
+const csrf = () => (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || "";
+
 async function api(path, opt) {
   const o = Object.assign({ headers: { Accept: "application/json" } }, opt || {});
+  o.headers = Object.assign({ "X-CSRFToken": csrf() }, o.headers);
   if (o.json !== undefined) { o.method = o.method || "POST"; o.body = JSON.stringify(o.json); o.headers["Content-Type"] = "application/json"; delete o.json; }
   const r = await fetch(path, o);
   if (r.status === 401) { location.href = "login"; throw new Error("Kirish kerak"); }
-  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail || "Server javob bermadi"); }
-  return r.json();
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    // DRF: {detail} yoki maydon xatolari {maydon: ["xabar"]}
+    const fields = Object.entries(j).filter(([k]) => k !== "detail").map(([k, v]) => `${k}: ${[].concat(v).join(", ")}`).join("; ");
+    throw new Error(j.detail || fields || "Server javob bermadi");
+  }
+  return r.status === 204 ? null : r.json();
 }
 
 async function load(silent) {
@@ -158,7 +172,7 @@ function go(tab) {
 function renderAll() { renderHist(); renderView(S.tab); }
 function renderView(tab) {
   if (!S.data) return;
-  ({ brifing: renderBrifing, ofis: renderOffice, xodimlar: renderPeople, loyihalar: renderProjects, bolimlar: renderDepts })[tab](S.data);
+  ({ brifing: renderBrifing, ofis: renderOffice, xodimlar: renderPeople, loyihalar: renderProjects, bolimlar: renderDepts, malumotlar: renderData })[tab](S.data);
 }
 
 /* sahifa sarlavhasi va filtrlar (hamma ekranda bir xil joyda) */
@@ -271,7 +285,9 @@ function heroCards(d) {
 
 function renderBrifing(d) {
   const el = $("#v-brifing"), k = d.kpi, now = parseTs(d.now);
-  const headline = d.decisions.length ? `Bugun ${d.decisions.length} ta masala qaroringizni kutmoqda.` : "Bugun qaror talab qiladigan masala yo'q.";
+  const mgr = isRole("menejer");
+  const headline = mgr ? `Loyihalaringiz: ${d.projects.length} ta, xavf ostida ${d.kpi.at_risk} ta.`
+    : d.decisions.length ? `Bugun ${d.decisions.length} ta masala qaroringizni kutmoqda.` : "Bugun qaror talab qiladigan masala yo'q.";
   const decs = S.showAllDecs ? d.decisions : d.decisions.slice(0, 5);
   const states = countStates(d.people);
   const day = WEEK[now.getDay()][0].toUpperCase() + WEEK[now.getDay()].slice(1);
@@ -279,8 +295,8 @@ function renderBrifing(d) {
     ${heroCards(d)}
 
     <div class="sec-title"><h2>${headline}</h2></div>
-    <div class="agenda">${decs.length ? decs.map(agRow).join("") : `<div class="dec-done"><span class="ic lv0">${I("check")}</span><span>Qaror talab qiladigan masala yo'q.</span></div>`}
-      ${d.decisions.length > 5 ? `<div class="ag-more"><button class="more-link" data-alldec>${S.showAllDecs ? "Kamroq ko'rsatish" : `Yana ${d.decisions.length - 5} ta`}</button></div>` : ""}</div>
+    ${mgr ? "" : `<div class="agenda">${decs.length ? decs.map(agRow).join("") : `<div class="dec-done"><span class="ic lv0">${I("check")}</span><span>Qaror talab qiladigan masala yo'q.</span></div>`}
+      ${d.decisions.length > 5 ? `<div class="ag-more"><button class="more-link" data-alldec>${S.showAllDecs ? "Kamroq ko'rsatish" : `Yana ${d.decisions.length - 5} ta`}</button></div>` : ""}</div>`}
 
     <div class="grid" style="margin-top:20px">
       <section class="card s7"><div class="ch"><h3>Jamoa</h3><span class="count">${d.people.length}</span>
@@ -350,7 +366,7 @@ function feedItem(f) {
     <div style="min-width:0"><div class="fi-h"><b>${esc(f.author || "Noma'lum")}</b><span class="t">${ago(f.date)}</span></div>
       <div class="fi-m"><span class="kind k-${f.kind}">${KIND[f.kind] || f.kind}</span>${f.project ? `<span class="pj">${esc(f.project)}</span>` : `<span class="unknown">loyiha?</span>`}${src(f.source)}</div>
       <p>${esc(f.text)}</p></div>
-    ${S.asof ? "" : `<button class="fix" data-fix="${f.id}" title="AI noto'g'ri tushungan bo'lsa">${I("pen")}Tuzatish</button>`}</div>`;
+    ${S.asof || !canAct() ? "" : `<button class="fix" data-fix="${f.id}" title="AI noto'g'ri tushungan bo'lsa">${I("pen")}Tuzatish</button>`}</div>`;
 }
 const LOG_ICON = { reassign: "transfer", deadline: "deadline", ping_person: "chat-dots", ping_project: "chat-dots", ping_blocker: "bell", dm_person: "letter", keep: "danger" };
 function logItem(x) {
@@ -455,7 +471,7 @@ function renderPeople(d) {
       <span class="vsep"></span>
       ${depts.map((x) => `<button class="chip" data-pd="${esc(x)}" aria-pressed="${f.dept === x}">${esc(x)}</button>`).join("")}
       <span class="vsep"></span>${stateChips(c, f.state, "people")}
-      <button class="ctl" id="pLinks" style="margin-left:auto">${I("user-plus")}Botga ulash</button>
+      ${canAct() ? `<button class="ctl" id="pLinks" style="margin-left:auto">${I("user-plus")}Botga ulash</button>` : ""}
       <select class="ctl" id="psort">
         <option value="attention">Avval muammolilar</option><option value="score">Baho bo'yicha</option><option value="low">Baho: pastdan</option>
         <option value="load">Ochiq vazifa ko'p</option><option value="oldest">Eng eski vazifa</option></select>
@@ -463,7 +479,7 @@ function renderPeople(d) {
     <div class="pgrid">${list.map((p) => personCard(p, maxOpen)).join("") || `<div class="card" style="grid-column:1/-1">${emptyBox("Bu filtrga mos xodim yo'q", "search")}</div>`}</div>`;
   bindHead(el);
   $("#psort").value = f.sort;
-  $("#pLinks").onclick = openLinks;
+  const links = $("#pLinks"); if (links) links.onclick = openLinks;
   $("#psort").onchange = (e) => { f.sort = e.target.value; renderPeople(S.data); };
   const q = $("#pq");
   q.oninput = () => { f.q = q.value; clearTimeout(q._t); q._t = setTimeout(() => { renderPeople(S.data); const n = $("#pq"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 160); };
@@ -635,15 +651,17 @@ async function openPerson(name) {
   const depts = [...new Set([...(d.departments || []), p.department])].filter((x) => x !== "Belgilanmagan");
   $("#drawer .sheet").innerHTML = `
     <div class="sh-head">${ava(p.name, p.department, p.state, "lg")}
-      <div style="min-width:0"><div class="name-row"><h2>${esc(p.name)}${p.role === "rahbar" ? I("crown", "crown") : ""}</h2>${p.id && !S.asof ? `<button class="icon-btn name-edit" id="nameBtn" title="Ism-familiyani yozish" aria-label="Ism-familiyani yozish">${I("pen")}</button>` : ""}</div><div class="meta">${statePill(p.state, p.fact, true)}
-        ${p.id ? `<select class="ctl" id="deptSel" style="height:28px;font-size:12.5px;padding-left:10px">${p.department === "Belgilanmagan" ? `<option value="">Bo'lim tanlang</option>` : ""}${depts.map((x) => `<option ${x === p.department ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>` : `<span>${esc(p.department)}</span>`}
-        ${p.id && !S.asof ? `<button class="role-btn" id="roleBtn" aria-pressed="${p.role === "rahbar"}" title="Rahbar boshqalarga vazifa bera oladi va botning guruhdagi savollarini hal qiladi">${I("crown")}Rahbar</button>` : ""}
+      <div style="min-width:0"><div class="name-row"><h2>${esc(p.name)}${["rahbar", "admin"].includes(p.role) ? I("crown", "crown") : ""}</h2>${p.id && !S.asof && canAct() ? `<button class="icon-btn name-edit" id="nameBtn" title="Ism-familiyani yozish" aria-label="Ism-familiyani yozish">${I("pen")}</button>` : ""}</div><div class="meta">${statePill(p.state, p.fact, true)}
+        ${p.id && canAct() ? `<select class="ctl" id="deptSel" style="height:28px;font-size:12.5px;padding-left:10px">${p.department === "Belgilanmagan" ? `<option value="">Bo'lim tanlang</option>` : ""}${depts.map((x) => `<option ${x === p.department ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>` : `<span>${esc(p.department)}</span>`}
+        ${p.id && !S.asof && isRole("admin") ? `<select class="ctl" id="roleSel" title="Rol: panelga kirish huquqi va Telegramda vazifa berish" style="height:28px;font-size:12.5px;padding-left:10px">
+          ${[["", "Rolsiz"], ["menejer", "Loyiha menejeri"], ["rahbar", "Rahbar"], ["admin", "Admin"]].map(([v, t]) => `<option value="${v}" ${(p.role || "") === v ? "selected" : ""}>${t}</option>`).join("")}</select>`
+          : p.role ? `<span class="pill p-ok sm">${esc(ROLE_NAMES[p.role] || p.role)}</span>` : ""}
         ${p.username ? `<span>@${esc(p.username)}</span>` : ""}</div></div>
       <button class="icon-btn x" aria-label="Yopish">${I("close")}</button></div>
     <div class="sh-body">
-      ${S.asof ? "" : `<div class="sh-acts">${p.open ? `<button class="btn btn-dark" id="pMove">${I("transfer")}Vazifa o'tkazish</button>` : ""}
+      ${S.asof || !canAct() ? "" : `<div class="sh-acts">${p.open ? `<button class="btn btn-dark" id="pMove">${I("transfer")}Vazifa o'tkazish</button>` : ""}
         <button class="btn btn-line" id="pPing">${I("chat-dots")}Holatini so'rash</button></div>`}
-      ${S.asof ? "" : `<section class="card"><div class="ch"><h3>Shaxsiy aloqa</h3></div><div class="cb" id="pContact"><div class="sk" style="height:36px"></div></div></section>`}
+      ${S.asof || !canAct() ? "" : `<section class="card"><div class="ch"><h3>Shaxsiy aloqa</h3></div><div class="cb" id="pContact"><div class="sk" style="height:36px"></div></div></section>`}
       <div class="tiles"><div class="tile"><b class="num">${p.open}</b><span>ochiq</span></div><div class="tile"><b class="num">${p.done}</b><span>bajardi</span></div>
         <div class="tile"><b class="num">${p.completion == null ? "—" : p.completion + "%"}</b><span>bajarish, 30 kun</span></div>
         <div class="tile"><b class="num">${p.cycle == null ? "—" : nf(p.cycle, 1)}</b><span>kunda 1 vazifa</span></div></div>
@@ -681,13 +699,13 @@ async function openPerson(name) {
       catch (err) { toast(esc(err.message), "danger"); }
     };
   });
-  $("#roleBtn")?.addEventListener("click", async (e) => {
-    const b = e.currentTarget, on = b.getAttribute("aria-pressed") !== "true";
-    try { await api("api/person/role", { json: { name: p.name, role: on ? "rahbar" : "" } }); b.setAttribute("aria-pressed", on);
-      toast(on ? `${esc(first(p.name))} endi rahbar` : `${esc(first(p.name))} rahbar emas`, "check"); load(true); }
-    catch (err) { toast(esc(err.message), "danger"); }
+  $("#roleSel")?.addEventListener("change", async (e) => {
+    const role = e.target.value;
+    try { await api("api/person/role", { json: { name: p.name, role } });
+      toast(role ? `${esc(first(p.name))}: ${esc(ROLE_NAMES[role])}` : `${esc(first(p.name))} rolsiz`, "check"); load(true); }
+    catch (err) { toast(esc(err.message), "danger"); openPerson(p.name); }
   });
-  if (!S.asof) loadContact(p);
+  if (!S.asof && canAct()) loadContact(p);
   $("#pPing")?.addEventListener("click", () => openAction({ type: "ping_person", name: p.name }));
 }
 
@@ -703,7 +721,7 @@ async function openProject(id) {
       <div style="min-width:0"><h2>${esc(p.name)}</h2><div class="meta">${levelPill(p.level, true)}<span>${esc(p.chat_title || "")}</span></div></div>
       <button class="icon-btn x" aria-label="Yopish">${I("close")}</button></div>
     <div class="sh-body">
-      ${S.asof ? "" : `<div class="sh-acts"><button class="btn btn-dark" id="prDl">${I("deadline")}Muddatni o'zgartirish</button>
+      ${S.asof || !canAct() ? "" : `<div class="sh-acts"><button class="btn btn-dark" id="prDl">${I("deadline")}Muddatni o'zgartirish</button>
         <button class="btn btn-line" id="prPing">${I("chat-dots")}Holatni so'rash</button>
         ${p.blocker_list.length ? `<button class="btn btn-line" id="prBl">${I("bell")}Muammo bo'yicha eslatish</button>` : ""}</div>`}
       <div class="tiles"><div class="tile"><b class="num">${p.progress}%</b><span>bajarilgan</span></div><div class="tile"><b class="num">${p.open_total}</b><span>ochiq</span></div>
@@ -712,6 +730,8 @@ async function openProject(id) {
       <section class="card"><div class="cb" style="padding-top:26px">${roadRow(p, S.data || { now: d.period.to + " 12:00:00", period: d.period }, true)}</div></section>
       ${p.risks.length ? `<section class="card"><div class="ch"><h3>Nega shu holatda</h3></div><div class="cb"><div class="why">${p.risks.map((r) => `<div class="why-i lv${r.level}"><div><b>${LEVEL[r.level]}</b>${esc(r.text)}</div></div>`).join("")}</div></div></section>` : ""}
       <section class="card"><div class="ch"><h3>Dinamika</h3><span class="count">kuniga ${nf(p.velocity, 1)} ta</span></div><div class="cb"><div style="height:170px"><canvas id="cProject"></canvas></div></div></section>
+      ${progressCard(d.team_progress)}
+      ${can("tasks", "c") && !S.asof ? `<div class="sh-acts"><button class="btn btn-line" id="prTasks">${I("checklist")}Vazifalarni boshqarish</button></div>` : ""}
       <section class="card"><div class="ch"><h3>Jamoa</h3><span class="count">${d.team.length}</span></div>
         <div class="cb" style="padding-top:6px"><div class="plist">${d.team.map((x) => { const pp = (S.data?.people || []).find((q) => q.name === x.name);
           return `<div class="prow" data-person="${esc(x.name)}">${ava(x.name, pp?.department, pp?.state)}<div><b>${esc(x.name)}</b><span>${x.open} ochiq, ${x.done} bajardi</span></div>${pp ? statePill(pp.state, "", true) : "<span></span>"}</div>`; }).join("") || emptyBox("Jamoa hali aniqlanmagan", "people")}</div></div></section>
@@ -733,12 +753,26 @@ async function openProject(id) {
         y: axis(c, { beginAtZero: true, ticks: { color: c.ink3, precision: 0, maxTicksLimit: 4 } }) } }),
     });
   }
+  $("#prTasks")?.addEventListener("click", () => { closeDrawer(); DT.res = "tasks"; DT.q = ""; DT.page = 1; DT.order = ""; DT.filters = { project: String(p.id) }; $("#v-malumotlar").innerHTML = ""; go("malumotlar"); });
   const tomorrow7 = new Date(Date.now() + 7 * 864e5);
   $("#prDl")?.addEventListener("click", () => openAction({ type: "deadline", project_id: p.id, date: p.eta_date || isoDay(tomorrow7) }));
   $("#prPing")?.addEventListener("click", () => openAction({ type: "ping_project", project_id: p.id }));
   $("#prBl")?.addEventListener("click", () => openAction({ type: "ping_blocker", project_id: p.id }));
 }
 
+// Loyihada kim qaysi vazifani qay darajada qilgan: bajarilgan ulushi, muddati o'tganlar, o'rtacha muddat, o'z vaqtida; ochilsa vazifalari
+const TASK_STATE = { done: ["p-ok", "Bajarilgan"], open: ["p-l2", "Ochiq"], taklif: ["p-l1", "Taklif"] };
+function progressCard(rows) {
+  if (!rows || !rows.length) return "";
+  return `<section class="card"><div class="ch"><h3>Kim qancha qildi</h3><span class="count">${rows.length}</span></div>
+    <div class="cb" style="padding-top:4px">${rows.map((x) => `<details class="tp"><summary>
+      <span class="tp-n"><b>${esc(x.name)}</b><small>${x.done} / ${x.total} bajargan${x.overdue ? `, <em>${x.overdue} ta muddati o'tgan</em>` : ""}</small></span>
+      <span class="tp-bar" title="${x.pct}% bajarilgan"><i style="width:${x.pct}%"></i></span><b class="tp-p num">${x.pct}%</b></summary>
+      <div class="tp-st"><span>O'rtacha <b>${x.avg_days == null ? "—" : nf(x.avg_days, 1) + " kun"}</b></span><span>Muddatida <b>${x.on_time == null ? "—" : x.on_time + "%"}</b></span><span>Ochiq <b>${x.open}</b></span></div>
+      ${x.tasks.map((t) => `<div class="task"><span>${esc(t.title)}</span><span class="pill ${TASK_STATE[t.status][0]} sm">${TASK_STATE[t.status][1]}</span>
+        <small>${t.deadline ? "muddat " + esc(t.deadline) + ", " : ""}${t.status === "done" && t.done_at ? "bajarilgan " + clock(t.done_at) : "berilgan " + clock(t.created_at)}</small></div>`).join("")}
+    </details>`).join("")}</div></section>`;
+}
 const skelHead = () => `<div class="sh-head"><div class="sk" style="width:56px;height:56px;border-radius:50%"></div><div style="flex:1"><div class="sk" style="height:20px;width:55%"></div><div class="sk" style="height:13px;width:35%;margin-top:9px"></div></div></div>
   <div class="sh-body"><div class="sk" style="height:84px"></div><div class="sk" style="height:220px"></div><div class="sk" style="height:160px"></div></div>`;
 function openDrawer(html) {
@@ -923,7 +957,7 @@ function openGuide() {
   $$("[data-copy]").forEach((b) => (b.onclick = () => { navigator.clipboard?.writeText(b.dataset.copy); toast("Nusxa olindi", "copy"); }));
 }
 function openKeys() {
-  openModal("Tezkor tugmalar", [["1 – 5", "bo'limlar"], ["Ctrl + K", "qidirish"], ["T", "yorug' / qorong'i"], ["Esc", "yopish"]].map((r) => `<div class="code"><span>${r[0]}</span><small>${r[1]}</small></div>`).join(""));
+  openModal("Tezkor tugmalar", [["1 – 6", "bo'limlar"], ["Ctrl + K", "qidirish"], ["T", "yorug' / qorong'i"], ["Esc", "yopish"]].map((r) => `<div class="code"><span>${r[0]}</span><small>${r[1]}</small></div>`).join(""));
 }
 function openImport() {
   openModal("Guruh tarixini yuklash", `<label class="drop" id="drop">${I("upload")}<b style="color:var(--ink)">result.json</b><span>Telegram Desktop → Export chat history → JSON</span><input type="file" accept=".json,application/json" hidden id="file"></label>`);
@@ -1070,7 +1104,7 @@ function hideTip() { $("#tip").classList.remove("show"); }
 
 /* ================= TV rejimi ================= */
 function startTV() {
-  const order = TABS.map((t) => t[0]);
+  const order = TABS.map((t) => t[0]).filter((t) => t !== "malumotlar"); // TV'da faqat ko'rsatiladigan ekranlar
   document.body.classList.add("tv");
   document.documentElement.requestFullscreen?.().catch(() => {});
   let i = order.indexOf(S.tab), left = 20;
@@ -1079,7 +1113,7 @@ function startTV() {
   document.body.appendChild(bar);
   const tick = () => {
     if (--left <= 0) { i = (i + 1) % order.length; go(order[i]); left = 20; }
-    bar.innerHTML = `${I("tv")}<span>${TABS[i][2]}, ${left}</span><button class="btn" id="tvX">${I("close")}Chiqish</button>`;
+    bar.innerHTML = `${I("tv")}<span>${TABS.find((t) => t[0] === order[i])[2]}, ${left}</span><button class="btn" id="tvX">${I("close")}Chiqish</button>`;
     $("#tvX").onclick = stopTV;
   };
   tick();
@@ -1101,6 +1135,17 @@ function toggleTheme() {
   S.officeKey = "";
   renderView(S.tab);
 }
+async function logout() {
+  try { await api("api/logout", { json: {} }); } catch (e) { /* baribir kirish sahifasiga */ }
+  location.href = "login";
+}
+// Rolga qarab menyu: nomi, roli, faqat ruxsat etilgan buyruqlar
+function applyRole() {
+  const me = ME();
+  $("#meMenu").innerHTML = `<b>${esc(me.name || me.username || "")}</b><span>${esc(me.role_label || "")}</span>`;
+  $('#menu [data-m="import"]').hidden = !isRole("admin");
+  $('#menu [data-m="settings"]').hidden = !isRole("admin");
+}
 function initMenu() {
   $("#menuBtn").addEventListener("click", (e) => { e.stopPropagation(); $("#menu").classList.toggle("open"); });
   document.addEventListener("click", (e) => {
@@ -1110,7 +1155,7 @@ function initMenu() {
   $$("#menu [data-m]").forEach((b) => b.addEventListener("click", () => {
     $("#menu").classList.remove("open");
     ({ excel: () => (location.href = "api/export.xlsx?" + query({ view: EXPORT_VIEW[S.tab] })), import: openImport, settings: openSettings, tv: startTV,
-       guide: openGuide, keys: openKeys, theme: toggleTheme })[b.dataset.m]();
+       guide: openGuide, keys: openKeys, theme: toggleTheme, logout })[b.dataset.m]();
   }));
   const dark = document.documentElement.dataset.theme === "dark";
   $("#themeItem").innerHTML = I(dark ? "sun" : "moon") + (dark ? "Yorug' rejim" : "Qorong'i rejim");
@@ -1129,7 +1174,7 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (/^[1-5]$/.test(e.key)) go(TABS[+e.key - 1][0]);
+  if (/^[1-6]$/.test(e.key)) go(TABS[+e.key - 1][0]);
   else if (e.key.toLowerCase() === "t") toggleTheme();
 });
 
@@ -1146,6 +1191,7 @@ function skeleton() {
   go(S.tab);
   skeleton();
   try { S.meta = await api("api/meta"); } catch (e) { return; }
+  applyRole();
   await load();
   try { S.ui = (await api("api/version")).ui; } catch (e) {}
   if (S.open.startsWith("p:")) openPerson(S.open.slice(2));

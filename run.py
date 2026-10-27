@@ -34,11 +34,44 @@ async def demo_refresh() -> None:
         await asyncio.sleep(60)
 
 
+async def quality_loop() -> None:
+    """Fon ishchisi: yangi yozilgan ishlarni baholaydi va eski ishning qayta yozilganini tekshiradi."""
+    from puls import quality
+
+    await asyncio.sleep(20)
+    while True:
+        try:
+            rated, checked = await asyncio.to_thread(quality.tick)
+            if rated or checked:
+                logging.info("Hisobot sifati: %d ta ish baholandi, %d tasi takrorga tekshirildi", rated, checked)
+                continue  # navbat bo'sh bo'lguncha tanaffussiz
+        except Exception:  # noqa: BLE001 — baholash xatosi panel va botni to'xtatmasin
+            logging.exception("hisobot sifati")
+        await asyncio.sleep(45)
+
+
+async def appeals_loop() -> None:
+    """Fon ishchisi: javobdan keyin jim qolgan murojaatlarni yopadi, chatbotdan kelganlarini AI bilan o'qiydi va takroriy
+    murojaatlar sababini (kuniga bir marta) yozadi."""
+    from puls import appeals
+
+    await asyncio.sleep(30)
+    while True:
+        try:
+            n = await asyncio.to_thread(appeals.tick)
+            if n:
+                logging.info("Murojaatlar: %d ta yangilandi", n)
+        except Exception:  # noqa: BLE001 — xato panel va botni to'xtatmasin
+            logging.exception("murojaatlar")
+        await asyncio.sleep(60)
+
+
 async def main() -> None:
     db.init()
     server = uvicorn.Server(uvicorn.Config(app, host=config.WEB_HOST, port=config.WEB_PORT, log_level="warning",
                                            proxy_headers=True, forwarded_allow_ips="*", access_log=False))
-    jobs = [server.serve()]
+    from puls import tgaccount
+    jobs = [server.serve(), quality_loop(), appeals_loop(), tgaccount.run()]
     if config.DEMO_DATA:
         jobs.append(demo_refresh())
     if config.BOT_TOKEN and config.BOT_ENABLED:

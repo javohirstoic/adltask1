@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 
-from . import ai, config, db
+from . import ai, board, config, db
 from .ingest import Incoming, ingest
 from .parser import Item, Parsed, parse_format
 
@@ -53,7 +53,7 @@ def _username(i: int, name: str) -> str:
     return "demo_%s%d" % (base, i) if i >= 14 else "demo_%s" % base
 
 
-PEOPLE = [(900000001 + i, n, _username(i, n)) for i, (n, _) in enumerate(STAFF)]
+PEOPLE = [(db.DEMO_LO + 1 + i, n, _username(i, n)) for i, (n, _) in enumerate(STAFF)]
 # Xodim xarakteri: (bo'lim, ishonchlilik, sekinlik kunlari, yuklama og'irligi). Ko'rsatilmaganlar — me'yoriy.
 _SPECIAL = {1: (1.1, -1, 1), 2: (0.95, 1, 2.4), 4: (1.06, -1, 1), 6: (0.9, 2, 2.0), 8: (0.45, 4, 1), 10: (0.9, 1, 1),
             12: (1.08, -1, 1), 13: (1.3, -1, 1), 26: (0.7, 2, 1), 45: (0.95, 2, 2.6), 47: (1.1, -1, 1)}
@@ -303,6 +303,23 @@ def generate(now: datetime, rnd: random.Random) -> list[Msg]:
     blocker("D", workdays_back(today, 4), 36, "Kiberxavfsizlik: tashqi auditor ruxsatnomasi hali yo'q, ishni boshlay olmayapmiz", "kiber")
     blocker("C", workdays_back(today, 9), 17, "#muammo #SudQidiruv GPU server band, indeks qurilmayapti", "sudqidiruv", 1, 14, "#done")
 
+    # Hisobot haqqoniyligi: kimdir eski ishini yangi deb qayta yozadi (aynan yoki boshqa so'zlar bilan), kimdir
+    # hamkasbining ishini o'ziniki qilib yozadi, kimdir kunni mayda ishlar bilan to'ldiradi. «Hisobotlar» shularni topadi.
+    def report(chat, d, h, m, who, text, key):
+        msgs.append(Msg(chat, at(d, h, m), who, text, expect=("done", key)))
+
+    report("A", workdays_back(today, 26), 16, 40, 22, "#done #Mobil Push-bildirishnomalar xizmati ulandi", "mobil")
+    report("A", workdays_back(today, 1), 17, 10, 22, "#done #Mobil Push-bildirishnomalar xizmati ulandi", "mobil")
+    report("A", workdays_back(today, 18), 15, 5, 22, "#done #Mobil Offline rejimda arizalarni saqlash", "mobil")
+    report("A", today, 10, 20, 22, "Mobil ilova: arizalarni offline rejimda saqlab qo'yish tayyor bo'ldi", "mobil")
+    report("A", workdays_back(today, 9), 16, 0, 25, "#done #Mobil Ariza holati ekrani dizayni", "mobil")
+    report("A", workdays_back(today, 2), 17, 30, 39, "#done #Mobil Ariza holati ekrani dizayni", "mobil")
+    report("B", today, 10, 5, 26, "#done #IchkiPortal\n- Tugma rangi o'zgartirildi\n- Sarlavha shrifti kattalashtirildi\n"
+           "- Logo joyi o'ngga surildi\n- Footer matnidagi xato tuzatildi\n- Ikonka almashtirildi\n- Menyu oralig'i kamaytirildi\n"
+           "- Tugma burchagi yumaloqlandi", "ichkiportal")
+    report("B", today, 10, 35, 21, "#done #IchkiPortal\n- Xodimlar katalogi uchun LDAP integratsiyasi\n"
+           "- Ichki qidiruv uchun indekslash xizmati", "ichkiportal")
+
     members = {c: sorted({P["lead"] for P in PROJECTS if P["chat"] == c} | {x for P in PROJECTS if P["chat"] == c for x in P["team"]})
                for c in CHATS}
     d = today - timedelta(days=44)
@@ -334,7 +351,7 @@ def reset(conn) -> None:
     conn.execute(f"DELETE FROM projects WHERE id IN ({pm})", pids)
     conn.execute(f"DELETE FROM messages WHERE chat_id IN ({marks})", ids)
     conn.execute(f"DELETE FROM chats WHERE id IN ({marks})", ids)
-    conn.execute("DELETE FROM people WHERE id BETWEEN 900000000 AND 900999999")
+    conn.execute("DELETE FROM people WHERE id BETWEEN ? AND ?", (db.DEMO_LO, db.DEMO_HI))
     conn.execute("DELETE FROM demo_queue")
 
 
@@ -361,6 +378,7 @@ def release(now: datetime | None = None) -> int:
             ingest(conn, Incoming(r["chat_id"], r["title"], r["msg_id"], r["user_id"], r["user_name"], r["username"], at, r["text"],
                                   reply_to=r["reply_to"], demo=True), use_ai=False, pre=pre)
             conn.execute("DELETE FROM demo_queue WHERE id = ?", (r["id"],))
+        board.demo_stages(conn)
     return len(rows)
 
 
@@ -384,7 +402,8 @@ def run(warm: bool = False, now: datetime | None = None, quiet: bool = False) ->
             conn.execute("INSERT INTO chats(id, title, demo, added_at) VALUES(?, ?, 1, ?)", (cid, title, now.isoformat(" ")))
         leads = {P["lead"] for P in PROJECTS}  # loyiha rahbarlari vazifa beradi va botning savollarini hal qiladi
         for i, (pid, name, username) in enumerate(PEOPLE):
-            conn.execute("INSERT OR REPLACE INTO people(id, name, username, department, role) VALUES(?, ?, ?, ?, ?)",
+            conn.execute("INSERT INTO people(id, name, username, department, role) VALUES(?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE "
+                         "SET name = excluded.name, username = excluded.username, department = excluded.department, role = excluded.role",
                          (pid, name, username, TRAITS[i][0], "rahbar" if i in leads else None))
         start = (now - timedelta(days=45)).strftime("%Y-%m-%d %H:%M:%S")
         for P in PROJECTS:
@@ -436,6 +455,7 @@ def run(warm: bool = False, now: datetime | None = None, quiet: bool = False) ->
                     ok += 1
                 else:
                     wrong.append((m.text[:70], exp, got_t))
+        board.demo_stages(conn)  # doska jonli ko'rinsin: ochiq vazifalarga ustun va foiz
         conn.execute("INSERT INTO meta(key, value) VALUES('demo_day', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                      (now.date().isoformat(),))
         ids = [c[0] for c in CHATS.values()]

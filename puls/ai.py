@@ -20,13 +20,14 @@ _lock = threading.Lock()
 _creds = None
 _gcp_project = None
 
-KINDS = ("task", "done", "blocker", "deadline", "reassign", "none")
+KINDS = ("task", "done", "blocker", "request", "deadline", "reassign", "none")
 SCHEMA = {
     "type": "OBJECT",
     "properties": {
         "kind": {"type": "STRING", "enum": list(KINDS)},
         "project": {"type": "STRING", "nullable": True},
         "refs": {"type": "ARRAY", "items": {"type": "INTEGER"}},
+        "solves": {"type": "ARRAY", "items": {"type": "INTEGER"}},
         "items": {
             "type": "ARRAY",
             "items": {
@@ -35,6 +36,7 @@ SCHEMA = {
                     "title": {"type": "STRING"},
                     "assignee": {"type": "STRING", "nullable": True},
                     "deadline": {"type": "STRING", "nullable": True},
+                    "same_as": {"type": "INTEGER", "nullable": True},
                 },
                 "required": ["title"],
             },
@@ -52,29 +54,49 @@ kind:
 - "task": new work is assigned or planned.
 - "done": work has been completed (past tense: tugatdim, bajarildi, tayyor bo'ldi, qildim, yakunlandi, ishga tushirildi,
   topshirdim, готово). A completed item is "done" even when its title contains words like "testlar" or "xatolarni tuzatish".
-- "blocker": a problem that stops the work (server down, no access, waiting for someone, error).
+- "blocker": a problem that stops the author's own work (no access, waiting for someone, server down for them).
+- "request": an incoming issue for the project team: a bug or error someone reports ("kabinetda arizalar bo'sh chiqyapti",
+  "pdf yuklanmayapti, 413 beryapti") or a request to fix or change something, without a named person who takes it.
+  A request that names who must do it, or that someone accepts, is "task".
 - "deadline": the message sets or moves a due date ("25-oktyabrgacha bajarilsin", "juma kuni tayyor bo'lsin",
   "muddatni keyingi haftaga suramiz"). If it is about specific existing tasks, put their ids in refs; if it is about the
   whole project, leave refs empty.
 - "reassign": existing work is handed to another person ("buni Sardor qilsin", "Elyorga o'tkazamiz"). Put the task ids in
   refs and the new person as the assignee of a single item.
 - "none": greetings, thanks, questions, jokes, meeting notes, anything that is not a work report.
+A polite request to do work is "task" even as a question ("sms modulini siz davom ettira olasizmi?", "vaqtingiz bormi,
+pdf ni qarab bering"); its assignee is the person asked (the author of the replied message, or the one named), else null.
+Agreeing to take such work ("mayli olaman", "men qilaman", "jumagacha bitkazaman" as a reply) is "task" for the author
+with the same title as the requested work and the promised date as its deadline.
+Read the earlier messages of the chat like a colleague who follows it: they tell what a short message is about.
 
 project: choose ONLY one key from the list below, or null if the project is not clear. Never invent a key.
 {projects}
 
 refs: ids of existing open tasks (from "Open tasks" below) that this message is about: the tasks it completes, gives a
 deadline to, or hands over. A reply to a task message is about that message's tasks. Use only listed ids. If you are not
-sure which task is meant, leave refs empty: never guess.
+sure which task is meant, leave refs empty: never guess. For "done", refs are only tasks the message says are finished:
+taking a task over, starting it or reading its code ("oldim", "boshladim", "kodini ko'rib chiqdim") does not finish it.
+solves: ids from "Open problems and requests" that this message reports as fixed, even when a colleague reported the
+problem and the author does not reply to it ("arizalar bo'sh chiqyapti" earlier, "api ni to'g'riladim, filtr noto'g'ri
+ekan" now). A reply to a problem message is about that problem. When the author only says that others removed their own
+problem ("dostup berishdi", "server ishladi"), it is not their work: kind "none", no items, but the id still goes to solves.
+Use only listed ids; empty when unsure.
 items: for "task" every separate new piece of work, for "done" every completed piece of work, as a short title in the
 original language, at most 80 characters, without the project name, the date, and words like "tugatdim" or "kerak".
 Write the title as a complete noun phrase in the base form that a manager understands out of context: "Hisobot shaklini
-yangilash" or "Hisobot shakli", never a cut object form like "Hisobot shaklini".
+yangilash" or "Hisobot shakli", never a cut object form like "Hisobot shaklini". Keep what the person really did:
+"xatoni ko'rib chiqdim" gives "Xatoni ko'rib chiqish", never "Xatoni tuzatish".
 Use an empty list for "none" and "deadline".
 assignee: who must do the item: the @username written in the message, or the @username of a team member mentioned by
 name (see Team). null if nobody is named.
 deadline (item and top level): YYYY-MM-DD. Resolve relative dates ("ertaga", "juma kuni", "keyingi haftaga",
 "oy oxirigacha") from today, {today}, {weekday}. Item deadline only when the message gives a date for that work.
+same_as (only for "done" items): the id from "Already reported today" when this item is the same piece of work that is
+already there under other words: an evening summary repeating what the author wrote in the chat earlier, or a result a
+colleague already reported. Read the chat context: "api filtrini tuzatdim" earlier and "arizalar bo'sh chiqayotgan edi,
+tuzatdim" in the evening can be the same fix. A next stage, a different part or the author's own review or testing of a
+colleague's work is not the same: then null. null when unsure.
 
 Examples:
 "Portal: login sahifasi tayyor bo'ldi, testga berdim" -> {{"kind":"done","project":"portal","refs":[],"items":[{{"title":"Login sahifasi","assignee":null,"deadline":null}}],"deadline":null}}
@@ -87,7 +109,7 @@ PROMPT = HEAD + """
 Context of this chat:
 {context}
 
-Author: {author}
+Author: {author}{role}
 Message:
 \"\"\"{text}\"\"\"
 """
@@ -138,11 +160,11 @@ def _call_model(model: str, prompt: str | list, schema: dict, think: int, timeou
         url = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % model
         auth = {"x-goog-api-key": config.GEMINI_API_KEY}
     else:
+        auth = {"Authorization": "Bearer " + _token()}  # avval token: loyiha nomi (_gcp_project) shu yerda o'qiladi
         url = (
             "https://aiplatform.googleapis.com/v1/projects/%s/locations/global/publishers/google/models/%s:generateContent"
             % (_gcp_project, model)
         )
-        auth = {"Authorization": "Bearer " + _token()}
     parts = prompt if isinstance(prompt, list) else [{"text": prompt}]
     body = {
         "contents": [{"role": "user", "parts": parts}],
@@ -173,7 +195,7 @@ def _plist(projects: list[dict]) -> str:
     ) or "- (no projects yet)"
 
 
-def _ask(prompt: str | list, retries: int, schema: dict = SCHEMA, think: int = 0) -> dict | None:
+def _ask(prompt: str | list, retries: int, schema: dict = SCHEMA, think: int = 0, first_timeout: float | None = None) -> dict | None:
     """Asosiy model band bo'lsa yoki javob bermasa (429, 5xx, timeout), navbatdagi urinish zaxira modelda bo'ladi.
     AI Studio kaliti bo'lsa asosiy model shu kalit orqali, zaxira esa doim Vertex orqali (kalit limiti tugasa ham ishlaydi)."""
     studio = bool(config.GEMINI_API_KEY)
@@ -184,7 +206,9 @@ def _ask(prompt: str | list, retries: int, schema: dict = SCHEMA, think: int = 0
         model, via_studio = routes[min(attempt, len(routes) - 1)]
         try:
             # jonli xabarda bot kuttirmasin: asosiy modelga 20 soniya, keyin zaxira
-            return _call_model(model, prompt, schema, think, 20 if attempt == 0 and schema is SCHEMA else None, via_studio)
+            # birinchi urinish qotib qolsa uzoq kutilmaydi: rahbar jonli kutayotgan joyda (agent) qisqa vaqt beriladi
+            first = first_timeout or (20 if schema is SCHEMA else None)
+            return _call_model(model, prompt, schema, think, first if attempt == 0 else None, via_studio)
         except urllib.error.HTTPError as e:
             # 429 — so'rov ko'p, 5xx — Google tomonda vaqtinchalik xato; AI Studio kalitining har qanday xatosi (limit,
             # bekor qilingan kalit) — darhol Vertex zaxirasiga
@@ -205,6 +229,65 @@ def _ask(prompt: str | list, retries: int, schema: dict = SCHEMA, think: int = 0
         except (KeyError, ValueError) as e:
             log.warning("AI javobi o'qilmadi, kalit so'zlarga o'tiladi: %s", e)
             return None
+    return None
+
+
+# ---------- lokal model (llama.cpp / Ollama / vLLM): OpenAI'ga mos /v1/chat/completions ----------
+
+def json_schema(s: dict) -> dict:
+    """Gemini sxemasi (OBJECT, STRING, nullable) -> JSON Schema: lokal server javobni shu qolipga majburan soladi."""
+    t = (s.get("type") or "").lower()
+    if t == "object":
+        out = {"type": "object", "properties": {k: json_schema(v) for k, v in (s.get("properties") or {}).items()}}
+        if s.get("required"):
+            out["required"] = list(s["required"])
+    elif t == "array":
+        out = {"type": "array", "items": json_schema(s.get("items") or {"type": "STRING"})}
+    else:
+        out = {"type": {"string": "string", "integer": "integer", "number": "number", "boolean": "boolean"}.get(t, "string")}
+    if s.get("enum"):
+        out["enum"] = list(s["enum"]) + ([None] if s.get("nullable") else [])
+    if s.get("nullable"):
+        out["type"] = [out["type"], "null"]
+    return out
+
+
+def _call_local(prompt: str, schema: dict, max_tokens: int = 600, timeout: float | None = None) -> dict:
+    body = {
+        "model": config.LOCAL_AI_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0,
+        "max_tokens": max_tokens,
+        "response_format": {"type": "json_schema", "json_schema": {"name": "javob", "schema": json_schema(schema)}},
+        "chat_template_kwargs": {"enable_thinking": False},  # o'ylash yoqilsa, tokenlar o'ylashga ketib javob bo'sh qoladi
+        "cache_prompt": True,  # ko'rsatmaning o'zgarmas boshi qayta hisoblanmaydi (sekin protsessorda muhim)
+    }
+    req = urllib.request.Request(config.LOCAL_AI_URL.rstrip("/") + "/chat/completions", data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout or config.LOCAL_AI_TIMEOUT) as resp:
+        data = json.loads(resp.read())
+    return json.loads(data["choices"][0]["message"]["content"])
+
+
+def ask_local(prompt: str, schema: dict, retries: int = 1, max_tokens: int = 600) -> dict | None:
+    if not config.LOCAL_AI_URL:
+        return None
+    for attempt in range(retries + 1):
+        try:
+            return _call_local(prompt, schema, max_tokens)
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            log.warning("lokal model javob bermadi (%s/%s): %s", attempt + 1, retries + 1, e)
+        except (KeyError, IndexError, ValueError) as e:
+            log.warning("lokal model javobi o'qilmadi: %s", e)
+    return None
+
+
+def ask_appeals(prompt: str, schema: dict, retries: int = 1, max_tokens: int = 600) -> dict | None:
+    """Murojaatlar (fuqarolar yozgan matn) uchun: APPEALS_AI=local bo'lsa faqat lokal model — matn serverdan chiqmaydi."""
+    if config.APPEALS_AI == "local":
+        return ask_local(prompt, schema, retries, max_tokens)
+    if config.APPEALS_AI == "gemini" and config.ai_enabled():
+        return _ask(prompt, retries, schema)
     return None
 
 
@@ -236,6 +319,17 @@ def context_text(ctx: dict) -> str:
     out += ["- %d | %s | %s | %s | %s | %s" % (t["id"], t["title"], t["assignee"] or "-", t["project"] or "-",
                                              t.get("created") or "-", t["deadline"] or "-")
             for t in ctx.get("tasks", [])] or ["- (none)"]
+    if ctx.get("chat"):
+        out.append("Earlier messages in this chat today (time | who | text):")
+        out += ["- %s | %s | %s" % (m["time"], m["who"], m["text"]) for m in ctx["chat"]]
+    if ctx.get("problems"):
+        out.append("Open problems and requests in this chat (id | kind | text | who reported | when):")
+        out += ["- %d | %s | %s | %s | %s" % (b["id"], b.get("kind") or "muammo", b["text"], b["author"] or "-", b["at"])
+                for b in ctx["problems"]]
+    if ctx.get("today"):
+        out.append("Already reported today in this chat (id | title | who did it | time | their message | problem it fixed):")
+        out += ["- %d | %s | %s | %s | %s | %s" % (t["id"], t["title"], t["assignee"] or "-", t["time"], t.get("said") or "-",
+                                                  "; ".join(t.get("solved") or []) or "-") for t in ctx["today"]]
     r = ctx.get("reply")
     if r:
         out.append('This message is a reply to %s: """%s"""%s' % (
@@ -244,16 +338,21 @@ def context_text(ctx: dict) -> str:
     return "\n".join(out)
 
 
+LEAD = (" (the team lead: an instruction from them is an order to the team. A task they give without naming a person has "
+        "assignee null, it is not their own work; only work they say they will do themselves is theirs)")
+
+
 def extract(text: str, author: str, projects: list[dict], today: date, retries: int = 1,
-            context: dict | None = None) -> Parsed | None:
+            context: dict | None = None, lead: bool = False) -> Parsed | None:
     if not config.ai_enabled():
         return None
     ctx = context or {}
     prompt = PROMPT.format(projects=_plist(projects), today=today.isoformat(), weekday=WEEKDAYS[today.weekday()],
-                           context=context_text(ctx), author=author, text=text[:2000])
+                           context=context_text(ctx), author=author, role=LEAD if lead else "", text=text[:2000])
     raw = _ask(prompt, retries, think=1024)  # bitta jonli xabar: kontekstni o'ylab ko'rishga imkon beramiz
     valid = {t["id"] for t in ctx.get("tasks", [])}
-    return None if raw is None else _normalize(raw, projects, valid)
+    return None if raw is None else _normalize(raw, projects, valid, {t["id"] for t in ctx.get("today", [])},
+                                                {b["id"] for b in ctx.get("problems", [])})
 
 
 def extract_many(messages: list[tuple[str, str]], projects: list[dict], today: date, retries: int = 5) -> list[Parsed | None]:
@@ -278,7 +377,8 @@ def _date(value) -> date | None:
         return None
 
 
-def _normalize(raw: dict, projects: list[dict], valid_refs: set[int] | None = None) -> Parsed:
+def _normalize(raw: dict, projects: list[dict], valid_refs: set[int] | None = None, today_ids: set[int] | None = None,
+               problem_ids: set[int] | None = None) -> Parsed:
     kind = raw.get("kind") if raw.get("kind") in KINDS else "none"
     keys = {p["key"] for p in projects}
     project = raw.get("project") if raw.get("project") in keys else None
@@ -292,11 +392,15 @@ def _normalize(raw: dict, projects: list[dict], valid_refs: set[int] | None = No
             assignee = "@" + assignee
         if assignee and not MENTION_RE.fullmatch(assignee):
             assignee = None
+        same = it.get("same_as")
+        same = same if kind == "done" and isinstance(same, int) and today_ids and same in today_ids else None
         if title:
-            items.append(Item(title, assignee, _date(it.get("deadline")) if kind == "task" else None))
-    deadline = _date(raw.get("deadline")) if kind == "deadline" else None
+            items.append(Item(title, assignee, _date(it.get("deadline")) if kind in ("task", "reassign") else None, same_as=same))
+    deadline = _date(raw.get("deadline")) if kind in ("deadline", "reassign") else None
     if kind == "deadline" and deadline is None:
         kind = "none"
     if kind == "reassign" and not (refs and items and items[0].assignee):
         kind = "none"  # kimga yoki qaysi ish ekani aniq bo'lmasa, hech narsa o'zgartirilmaydi
-    return Parsed(kind, project, items if kind not in ("none", "deadline") else [], deadline, "ai", refs)
+    solves = [b for b in raw.get("solves") or [] if isinstance(b, int) and problem_ids and b in problem_ids] \
+        if kind in ("done", "none") else []
+    return Parsed(kind, project, items if kind not in ("none", "deadline") else [], deadline, "ai", refs, solves=solves)

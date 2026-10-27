@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Puls — loyihalar analitikasi</title>
+<meta name="description" content="Telegram ish guruhlaridan rahbar uchun loyihalar va jamoa nazorati">
+<meta name="theme-color" content="#0e2b33">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230e2b33'/%3E%3Cpath d='M5 17h5l3-7 5 13 3-6h6' fill='none' stroke='%238fd3e3' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preload" href="static/vendor/sans3-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="static/vendor/serif4-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="static/puls2.css">
+<script>
+  // Mavzu sahifa chizilishidan oldin: asosiy — yorug'; qorong'i faqat foydalanuvchi o'zi tanlasa
+  (function () { var t = null; try { t = localStorage.getItem("puls-theme"); } catch (e) {}
+    document.documentElement.setAttribute("data-theme", t === "dark" ? "dark" : "light"); })();
+</script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="side" aria-label="Menyu">
+    <a class="sb-brand" href="./" aria-label="Puls, bosh sahifa">
+      <span class="sb-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12.5h4l2.4-5.6 4.2 10.6 2.6-5h5.8"/></svg></span>
+      <span><b>Puls</b><small>Loyihalar analitikasi</small></span>
+    </a>
+    <nav class="snav" id="nav" aria-label="Bo'limlar"></nav>
+    <div class="sb-foot">
+      <h3>Ma'lumot manbasi</h3>
+      <div class="sf-row live" id="live" title="Yangi xabar kelishi bilan panel o'zi yangilanadi"><i></i><span>Jonli</span></div>
+      <div id="sideInfo"></div>
+    </div>
+  </aside>
+  <div class="sb-scrim" id="sideScrim"></div>
+
+  <div class="mainwrap">
+    <header class="topbar">
+      <button class="icon-btn side-btn" id="sideBtn" aria-label="Menyu"><svg class="i" aria-hidden="true"><use href="static/vendor/icons.svg#i-list"/></svg></button>
+      <div class="crumbs" id="crumbs"></div>
+      <select class="ctl scope-sel" id="scopeSel" aria-label="Bo'lim paneli"><option value="">Hamma bo'limlar</option></select>
+      <button class="tsearch" id="searchBtn" aria-label="Qidirish"><svg class="i" aria-hidden="true"><use href="static/vendor/icons.svg#i-search"/></svg><span>Loyiha, xodim yoki ish qidiring</span><kbd>Ctrl K</kbd></button>
+      <button class="ai-btn" id="aiBtn" aria-pressed="false" title="Yordamchi (/)"><svg class="i" aria-hidden="true"><use href="static/vendor/icons.svg#i-stars"/></svg><span>Yordamchi</span></button>
+      <div class="menu" id="menu">
+        <button class="icon-btn" id="menuBtn" aria-label="Menyu" aria-haspopup="true"><svg class="i" aria-hidden="true"><use href="static/vendor/icons.svg#i-more"/></svg></button>
+        <div class="pop" role="menu">
+          <button data-m="addperson"><svg class="i"><use href="static/vendor/icons.svg#i-user-plus"/></svg>Xodim qo'shish</button>
+          <button data-m="people"><svg class="i"><use href="static/vendor/icons.svg#i-user-check"/></svg>Guruhdagi odamlar</button>
+          <hr>
+          <button data-m="doska"><svg class="i"><use href="static/vendor/icons.svg#i-checklist"/></svg>Vazifalar doskasi</button>
+          <button data-m="hisobot"><svg class="i"><use href="static/vendor/icons.svg#i-doc"/></svg>Kunlik hisobotlar</button>
+          <button data-m="jamoa"><svg class="i"><use href="static/vendor/icons.svg#i-people"/></svg>Xodimlar ro'yxati</button>
+          <button data-m="bolimlar"><svg class="i"><use href="static/vendor/icons.svg#i-depts"/></svg>Bo'limlar reytingi</button>
+          <hr>
+          <button data-m="bottest"><svg class="i"><use href="static/vendor/icons.svg#i-check"/></svg>Botni sinash</button>
+          <button data-m="excel"><svg class="i"><use href="static/vendor/icons.svg#i-download"/></svg>Excel hisobot</button>
+          <button data-m="import"><svg class="i"><use href="static/vendor/icons.svg#i-upload"/></svg>Guruh tarixini yuklash</button>
+          <button data-m="settings"><svg class="i"><use href="static/vendor/icons.svg#i-tuning"/></svg>Sozlamalar</button>
+          <button data-m="tv"><svg class="i"><use href="static/vendor/icons.svg#i-tv"/></svg>Katta ekranda ko'rsatish</button>
+          <a href="#/ofis"><svg class="i"><use href="static/vendor/icons.svg#i-office"/></svg>Ofis ko'rinishi</a>
+          <a href="#/brifing"><svg class="i"><use href="static/vendor/icons.svg#i-brifing"/></svg>Eski bosh sahifa</a>
+          <a href="taqdimot" target="_blank" rel="noopener"><svg class="i"><use href="static/vendor/icons.svg#i-present"/></svg>Taqdimot</a>
+          <hr>
+          <button data-m="guide"><svg class="i"><use href="static/vendor/icons.svg#i-help"/></svg>Guruhda yozish formati</button>
+          <button data-m="keys"><svg class="i"><use href="static/vendor/icons.svg#i-keyboard"/></svg>Tezkor tugmalar</button>
+          <button data-m="theme" id="themeItem"></button>
+        </div>
+      </div>
+    </header>
+    <div class="hist" id="hist" hidden></div>
+    <div class="role-note" id="roleNote" hidden></div>
+    <div class="role-note scope-note" id="scopeNote" hidden></div>
+
+    <main>
+      <section class="view" id="v-holat"></section>
+      <section class="view" id="v-jamoa"></section>
+      <section class="view" id="v-hisobot"></section>
+      <section class="view" id="v-doska"></section>
+      <section class="view" id="v-bolimlar"></section>
+      <section class="view" id="v-brifing"></section>
+      <section class="view" id="v-ofis"></section>
+      <section class="view" id="v-xodimlar"></section>
+    </main>
+  </div>
+</div>
+
+<nav class="bnav" id="bnav" aria-label="Bo'limlar"></nav>
+<div class="tm" id="tm"></div>
+<div class="drawer" id="drawer" aria-hidden="true"><div class="scrim"></div><div class="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="modal" id="modal"><div class="mbox" role="dialog" aria-modal="true"></div></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="tip" id="tip"></div>
+
+<script src="static/vendor/chart.umd.min.js"></script>
+<script src="static/office.js"></script>
+<script src="static/puls2.js"></script>
+<script src="static/sahifalar.js"></script>
+<script src="static/murojaat.js"></script>
+</body>
+</html>

@@ -13,14 +13,14 @@ T0 = datetime(2026, 10, 21, 11, 20)
 SYNONYMS = {"prezentatsiya": "taqdimot", "slayd": "taqdimot"}
 
 
-def fake_embed(texts, task_type):
+def fake_embed(texts, task_type, patient=False):
     """Har so'z (sinonimi bilan) bitta o'lcham: so'zlari boshqa, ma'nosi bir gaplar yaqin chiqadi."""
     out = []
     for t in texts:
-        v = [0.0] * 64
+        v = [0.0] * memory.DIM  # bazadagi vektor o'lchami bilan bir xil (PostgreSQL pgvector buni talab qiladi)
         for w in t.lower().replace(",", " ").split():
             w = next((s for k, s in SYNONYMS.items() if w.startswith(k)), w[:5])
-            v[zlib.crc32(w.encode()) % 64] += 1  # hash() har ishga tushishda boshqa: test barqaror bo'lsin
+            v[zlib.crc32(w.encode()) % memory.DIM] += 1  # hash() har ishga tushishda boshqa: test barqaror bo'lsin
         out.append(v)
     return out
 
@@ -76,7 +76,7 @@ def test_context_lists_team_tasks_and_reply(conn):
 def fake_ai(monkeypatch, parsed):
     seen = {}
 
-    def extract(text, author, projects, today, retries=1, context=None):
+    def extract(text, author, projects, today, retries=1, context=None, lead=False):
         seen["context"] = context
         return parsed(context)
     monkeypatch.setattr(ai, "extract", extract)

@@ -159,7 +159,10 @@ window.Office = (function () {
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     el.appendChild(svg);
 
-    function setVB(v) { state.vb = v; svg.setAttribute("viewBox", v.x.toFixed(1) + " " + v.y.toFixed(1) + " " + v.w.toFixed(1) + " " + v.h.toFixed(1)); }
+    function setVB(v) {
+      if (![v.x, v.y, v.w, v.h].every(Number.isFinite) || v.w <= 0 || v.h <= 0) v = { x: 0, y: 0, w: 1000, h: 600 };  // bo'sh ofis: xodim hali yo'q
+      state.vb = v; svg.setAttribute("viewBox", v.x.toFixed(1) + " " + v.y.toFixed(1) + " " + v.w.toFixed(1) + " " + v.h.toFixed(1));
+    }
     function toWorld(cx, cy, m) { var pt = svg.createSVGPoint(); pt.x = cx; pt.y = cy; return pt.matrixTransform(m || svg.getScreenCTM().inverse()); }
     function zoom(f, cx, cy) {
       var v = state.vb, b = state.base, p = toWorld(cx, cy);

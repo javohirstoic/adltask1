@@ -43,7 +43,7 @@ def test_done_matches_open_task(conn):
     t0 = datetime(2026, 10, 20, 9, 0)
     msg(conn, 1, "#task #Portal Login sahifasi", t0)
     msg(conn, 2, "#done #Portal login sahifasi", t0 + timedelta(hours=3))
-    row = conn.execute("SELECT status, count(*) n FROM tasks").fetchone()
+    row = conn.execute("SELECT max(status) status, count(*) n FROM tasks").fetchone()
     assert row["status"] == "done" and row["n"] == 1  # yangi vazifa yaratilmadi, ochig'i yopildi
 
 

@@ -24,6 +24,7 @@
     </a>
     <nav class="nav" id="nav" aria-label="Bo'limlar"></nav>
     <div class="top-tools">
+      <select class="ctl scope-sel" id="scopeSel" aria-label="Bo'lim paneli"><option value="">Hamma bo'limlar</option></select>
       <span class="live" id="live" title="Yangi xabar kelishi bilan panel o'zi yangilanadi"><i></i><span>Jonli</span></span>
       <button class="search-btn" id="searchBtn" aria-label="Qidirish"><svg class="i" aria-hidden="true"><use href="static/vendor/icons.svg#i-search"/></svg><span>Qidirish</span><kbd>Ctrl K</kbd></button>
       <div class="menu" id="menu">
@@ -44,9 +45,13 @@
   </div>
 </header>
 <div class="hist" id="hist" hidden></div>
+<div class="role-note" id="roleNote" hidden></div>
+<div class="role-note scope-note" id="scopeNote" hidden></div>
 
 <main>
   <section class="view" id="v-brifing"></section>
+  <section class="view" id="v-hisobot"></section>
+  <section class="view" id="v-doska"></section>
   <section class="view" id="v-ofis"></section>
   <section class="view" id="v-xodimlar"></section>
   <section class="view" id="v-loyihalar"></section>

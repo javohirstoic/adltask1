@@ -14,7 +14,9 @@ import urllib.error
 import urllib.request
 from array import array
 
-from . import ai, config
+import numpy as np
+
+from . import ai, config, db
 
 log = logging.getLogger("puls.memory")
 MODEL = "gemini-embedding-001"
@@ -22,32 +24,37 @@ DIM = 256
 BATCH = 50
 
 
-def _embed(texts: list[str], task_type: str) -> list[list[float]] | None:
+def _embed(texts: list[str], task_type: str, patient: bool = False) -> list[list[float]] | None:
+    """patient=True (fon ishchisi): 429 bo'lsa uzoqroq kutadi va so'rovlar orasida pauza qiladi. Yarmida to'xtasa ham
+    olingan qismi qaytadi (keshga yoziladi, keyingi safar qolgani olinadi)."""
     if not config.ai_enabled() or not texts:
         return None
+    out = []
     try:
         token = ai._token()
         url = ("https://aiplatform.googleapis.com/v1/projects/%s/locations/global/publishers/google/models/%s:predict"
                % (ai._gcp_project, MODEL))
-        out = []
         for i in range(0, len(texts), BATCH):
+            if patient and i:
+                time.sleep(0.4)
             body = {"instances": [{"content": t[:2000], "task_type": task_type} for t in texts[i:i + BATCH]],
                     "parameters": {"outputDimensionality": DIM}}
             req = urllib.request.Request(url, json.dumps(body).encode(),
                                          {"Content-Type": "application/json", "Authorization": "Bearer " + token})
-            for attempt in range(3):  # 429 (so'rov ko'p) bo'lsa biroz kutib qayta urinamiz
+            tries = 6 if patient else 3
+            for attempt in range(tries):  # 429 (so'rov ko'p) bo'lsa kutib qayta urinamiz
                 try:
                     with urllib.request.urlopen(req, timeout=20) as resp:
                         out += [p["embeddings"]["values"] for p in json.loads(resp.read())["predictions"]]
                     break
                 except urllib.error.HTTPError as e:
-                    if e.code != 429 or attempt == 2:
+                    if e.code != 429 or attempt == tries - 1:
                         raise
-                    time.sleep(1.5 * (attempt + 1))
+                    time.sleep(min(30, 2 ** (attempt + 1)) if patient else 1.5 * (attempt + 1))
         return out
     except (urllib.error.URLError, TimeoutError, KeyError, ValueError, OSError) as e:
-        log.warning("embedding ishlamadi, so'z bo'yicha qidiruvga o'tiladi: %s", e)
-        return None
+        log.warning("embedding ishlamadi%s: %s", ", olingani saqlanadi" if out else ", so'z bo'yicha qidiruvga o'tiladi", e)
+        return out or None
 
 
 def _unit(v: list[float]) -> array:
@@ -55,21 +62,22 @@ def _unit(v: list[float]) -> array:
     return array("f", (x / n for x in v))
 
 
-def vectors(conn: sqlite3.Connection, titles: list[str]) -> dict[str, array]:
+def vectors(conn: sqlite3.Connection, titles: list[str], patient: bool = False) -> dict[str, array]:
     """Nom -> birlik vektor. Yangi nomlar bir marta hisoblanib, bazada keshlanadi (namuna qayta yaratilsa ham)."""
     titles = sorted(set(titles))
     have = {}
     for i in range(0, len(titles), 500):
         part = titles[i:i + 500]
         for r in conn.execute("SELECT text, vec FROM vec_cache WHERE text IN (%s)" % ",".join("?" * len(part)), part):
-            have[r["text"]] = array("f", r["vec"])
+            have[r["text"]] = np.asarray(r["vec"], dtype=np.float32) if db.PG else array("f", r["vec"])
     missing = [t for t in titles if t not in have]
     if missing:
-        got = _embed(missing, "RETRIEVAL_DOCUMENT")
+        got = _embed(missing, "RETRIEVAL_DOCUMENT", patient)
         if got:
             for t, v in zip(missing, got):
-                have[t] = _unit(v)
-                conn.execute("INSERT OR REPLACE INTO vec_cache(text, vec) VALUES(?, ?)", (t, have[t].tobytes()))
+                have[t] = np.frombuffer(_unit(v), dtype=np.float32).copy() if db.PG else _unit(v)
+                conn.execute("INSERT INTO vec_cache(text, vec) VALUES(?, ?) ON CONFLICT(text) DO UPDATE SET vec = excluded.vec",
+                             (t, have[t] if db.PG else have[t].tobytes()))
     return have
 
 
@@ -82,6 +90,14 @@ def nearest(conn: sqlite3.Connection, query: str, tasks: list[dict], k: int) -> 
         return []
     qv = _unit(q[0])
     vecs = vectors(conn, [t["title"] for t in tasks])
-    scored = [(sum(a * b for a, b in zip(qv, vecs[t["title"]])), t) for t in tasks if t["title"] in vecs]
-    scored.sort(key=lambda x: -x[0])
-    return scored[:k]
+    have = [t for t in tasks if t["title"] in vecs]
+    if not have:
+        return []
+    sims = matrix([vecs[t["title"]] for t in have]) @ np.frombuffer(qv, dtype=np.float32)
+    order = np.argsort(-sims)[:k]
+    return [(float(sims[i]), have[i]) for i in order]
+
+
+def matrix(vs: list[array]) -> np.ndarray:
+    """Birlik vektorlar ro'yxati -> (n, DIM) matritsa: ming vazifa bilan solishtirish bitta ko'paytma."""
+    return np.frombuffer(b"".join(v.tobytes() for v in vs), dtype=np.float32).reshape(len(vs), -1)

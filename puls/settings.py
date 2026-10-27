@@ -17,10 +17,22 @@ SPEC = {
     "bus_share": (75, "Ishning necha foizi bitta odamda bo'lsa ogohlantirish", 50, 100, "Loyiha holati"),
     "age_slow_days": (3, "Vazifa necha kundan «cho'zilyapti»", 1, 30, "Vazifa yoshi"),
     "age_stuck_days": (7, "Vazifa necha kundan «qotib qolgan» (qizil)", 2, 60, "Vazifa yoshi"),
-    "w_completion": (40, "Bajarish", 0, 100, "Baho og'irliklari"),
-    "w_speed": (25, "Tezlik", 0, 100, "Baho og'irliklari"),
-    "w_regular": (20, "Muntazam hisobot", 0, 100, "Baho og'irliklari"),
-    "w_fresh": (15, "Eskirgan vazifa yo'qligi", 0, 100, "Baho og'irliklari"),
+    "w_completion": (30, "Bajarish", 0, 100, "Baho og'irliklari"),
+    "w_output": (30, "Ish hajmi (AI bahosi)", 0, 100, "Baho og'irliklari"),
+    "w_speed": (15, "Tezlik", 0, 100, "Baho og'irliklari"),
+    "w_regular": (15, "Muntazam hisobot", 0, 100, "Baho og'irliklari"),
+    "w_fresh": (10, "Eskirgan vazifa yo'qligi", 0, 100, "Baho og'irliklari"),
+    "repeat_penalty": (5, "Qayta yozilgan har ish uchun reytingdan ayiriladi (4 haftada)", 0, 25, "Baho og'irliklari"),
+    "bot_react": ("off", "Bot guruhdagi xabarga reaksiya qo'yadi", None, None, "Hisobot qabul qilish",
+                  [("off", "Yo'q, jim qabul qiladi"), ("on", "Ha (👍, 🤔)")]),
+    "report_from": ("hamma", "Hisobot kimdan qabul qilinadi", None, None, "Hisobot qabul qilish",
+                    [("hamma", "Guruhdagi har kimdan (keyin panelda tasdiqlanadi)"),
+                     ("ulangan", "Faqat tasdiqlangan yoki botga ulangan xodimdan")]),
+    "report_deadline": ("18:00", "Kunlik hisobot muddati (shundan keyin yozilgani kechikkan)", None, None, "Hisobot qabul qilish"),
+    "project_mode": ("guruh", "Loyiha", None, None, "Hisobot qabul qilish",
+                     [("guruh", "Har guruh — bitta loyiha"), ("teg", "Hisobotdagi loyiha tegi bo'yicha")]),
+    "ai_read": ("aqlli", "Tegsiz xabarlar", None, None, "Hisobot qabul qilish",
+                [("aqlli", "Ishga o'xshaganini AI o'qiydi"), ("teg", "Faqat tegli hisobot (AI ishlatilmaydi)")]),
     "assign_check": ("guruh", "Ishi ko'p xodimga vazifa berilsa ogohlantirish", None, None, "Vazifa berish",
                      [("guruh", "Guruhda"), ("shaxsan", "Bergan kishiga shaxsan"), ("off", "O'chiq")]),
     "assign_policy": ("hamma", "Boshqa xodimga vazifa beradi", None, None, "Vazifa berish",
@@ -69,9 +81,14 @@ def save(conn: sqlite3.Connection, changes: dict) -> dict:
     return load(conn)
 
 
+HIDDEN = {"project_mode"}  # bitta guruh — bitta loyiha: shart, panelda o'zgartirilmaydi (teg rejimi faqat sinov va eski bazalar uchun)
+
+
 def schema() -> list[dict]:
     groups: dict[str, list] = {}
     for key, spec in SPEC.items():
+        if key in HIDDEN:
+            continue
         default, label, lo, hi, group = spec[:5]
         options = spec[5] if len(spec) > 5 else None
         kind = "choice" if options else "time" if isinstance(default, str) else "number"

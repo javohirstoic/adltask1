@@ -9,7 +9,7 @@ To'liq texnik topshiriq: [docs/Puls_TZ_v1.pdf](docs/Puls_TZ_v1.pdf).
 
 1. **Bot** (`puls/bot.py`) guruhdagi xabarni oladi va reaksiya bilan tasdiqlaydi: ✍ vazifa, 👍 bajarildi, 👀 muammo, 🫡 muddat, 🤔 loyiha aniqlanmadi.
 2. **Tushunish** (`puls/parser.py`, `puls/ai.py`): `#task #done #muammo #deadline` teglari bo'lsa qoida bilan; teg bo'lmasa Gemini (faqat JSON, loyihani faqat ro'yxatdan tanlaydi); AI ishlamasa kalit so'zlar.
-3. **Baza** (`puls/db.py`): SQLite — `data/puls.db`.
+3. **Baza** (`puls/db.py`): PostgreSQL 17 + pgvector (`DATABASE_URL`, docker-compose `db` xizmati); embedding qidiruvi baza ichida (HNSW). SQLite (`data/puls.db`) faqat mahalliy sinov uchun. Bir martalik ko'chirish: `python -m puls.migrate data/puls.db`. Kunlik zaxira: `backup.sh` (cron 02:30, 14 kun).
 4. **Hisob-kitob** (`puls/analytics.py`): loyiha va xodim holatlari, prognoz, qarorlar. Barcha chegaralar `puls/settings.py` da va paneldan o'zgartiriladi.
 5. **Qaror markazi** (`puls/actions.py`): vazifa o'tkazish, muddat surish, holat so'rash, shaxsiy eslatma. Har harakat jurnalga yoziladi.
 6. **Vazifa berishdagi nazorat** (`puls/load.py`): ishi ko'p xodimga vazifa yozilsa, bot o'sha xabarga javob beradi va shu bo'limdan bo'shroq hamkasbni tavsiya qiladi. Tugmani vazifa bergan kishi yoki rahbar bosadi, tanlov qarorlar jurnaliga tushadi. "Faqat rahbarlar" sozlamasida oddiy xodim boshqaga yozgan vazifa o'sha xodim qabul qilgandan keyin hisobga kiradi.
@@ -31,7 +31,7 @@ BOT_USERNAME=puls_loyiha_bot
 OWNER_ID=...             # kunlik brifing shu odamga keladi
 AI_PROVIDER=gemini
 GEMINI_SA=path/to/service-account.json
-PANEL_PIN=123456         # bo'sh bo'lsa panel kodsiz ochiladi
+
 DEMO_DATA=1              # namuna guruhlarni har kuni yangilash
 BOT_ENABLED=1            # bot faqat BITTA joyda ishlashi kerak
 ```

@@ -1,5 +1,19 @@
 name: adliya-puls
 services:
+  db:
+    image: pgvector/pgvector:pg17          # PostgreSQL 17 + pgvector (embedding qidiruvi baza ichida)
+    environment:
+      POSTGRES_DB: puls
+      POSTGRES_USER: puls
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?PG_PASSWORD .env da bo'lsin}
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U puls -d puls"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped                 # port tashqariga ochilmaydi: faqat web konteyneri ko'radi
   web:
     build: .
     image: adliya-puls-web
@@ -8,6 +22,9 @@ services:
       WEB_HOST: 0.0.0.0
       WEB_PORT: "8000"
       GEMINI_SA: /run/secrets/gemini-sa.json
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "127.0.0.1:${HOST_PORT:-8121}:8000"   # faqat shu kompyuterdan; tashqariga nginx orqali
     volumes:

@@ -11,6 +11,7 @@ Ishi ko'p degan baho paneldagi bilan bir xil qoidadan olinadi (analytics.people_
 """
 import json
 import sqlite3
+from datetime import timedelta
 from html import escape
 
 from . import analytics, config, db, settings
@@ -50,8 +51,8 @@ def _candidates(conn: sqlite3.Connection, people: dict, person: dict, project_id
     # Bo'limi belgilangan, so'nggi 2 haftada guruhga yozgan, lekin hali vazifa olmagan xodim ham bo'sh
     marks = ",".join("?" * len(fits))
     for r in conn.execute(f"SELECT DISTINCT pe.id, pe.name, pe.department FROM people pe JOIN messages m ON m.user_id = pe.id "
-                          f"WHERE pe.department IN ({marks}) AND m.date >= datetime(?, '-14 days')",
-                          list(fits) + [config.now().strftime(analytics.FMT)]):
+                          f"WHERE pe.department IN ({marks}) AND m.date >= ?",
+                          list(fits) + [(config.now() - timedelta(days=14)).strftime(analytics.FMT)]):
         if r["name"] not in people and r["name"] != person["name"] and r["id"] != config.OWNER_ID:
             pool.append({"name": r["name"], "open": 0, "assigned14": 0, "department": r["department"], "state": "idle"})
     pool.sort(key=lambda p: (p["department"] != dept, p["open"], p["state"] == "stuck", p["name"] not in in_project,
@@ -84,7 +85,7 @@ def check(conn: sqlite3.Connection, task_ids: list[int], giver_id: int, chat_id:
             continue
         # Shu kishi bugun shu odamga "baribir bersin" degan bo'lsa, qayta so'ralmaydi
         if conn.execute("SELECT 1 FROM alerts WHERE kind = 'yuklama' AND assignee = ? AND giver_id = ? AND resolution = 'keep' "
-                        "AND resolved_at >= date(?)", (name, giver_id, config.now().strftime(analytics.FMT))).fetchone():
+                        "AND resolved_at >= ?", (name, giver_id, config.now().date().isoformat())).fetchone():
             continue
         cands = _candidates(conn, people, p, tasks[0]["project_id"])
         titles = ", ".join("«%s»" % escape(t["title"]) for t in tasks[:3]) + (" va yana %d ta" % (len(tasks) - 3) if len(tasks) > 3 else "")

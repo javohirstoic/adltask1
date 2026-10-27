@@ -75,6 +75,21 @@ def _plan(conn, action: dict) -> dict:
         age = (config.now().date() - analytics._d(b["created_at"])).days
         text = "«%s» muammosi %d kundan beri hal bo'lmagan (%s). Mas'ul, bugun holatini yozing." % (b["text"], age, p["name"])
         return {"title": "%s: muammo bo'yicha eslatma" % p["name"], "items": [b["text"]], "chat": _chat(conn, p["chat_id"]), "message": text}
+    if t == "thank_person":
+        # Rahbarning minnatdorchiligi: botga ulangan bo'lsa shaxsan, bo'lmasa ish guruhida (hamma ko'radi — bu ham rag'bat)
+        name = action["name"]
+        first = name.split()[0]
+        person = conn.execute("SELECT dm_chat_id FROM people WHERE name = ?", (name,)).fetchone()
+        why = (action.get("why") or "").strip()
+        text = (action.get("text") or "").strip() or "%s, oxirgi paytdagi ishingiz uchun rahmat%s. Shunday davom eting!" % (
+            first, ": " + why if why else "")
+        if person and person["dm_chat_id"]:
+            return {"title": "%sga rahmat aytish" % first, "items": [], "message": text,
+                    "chat": {"id": person["dm_chat_id"], "title": "%s (shaxsiy)" % name, "demo": 0}, "private": True}
+        row = conn.execute("SELECT m.chat_id FROM messages m JOIN people pe ON pe.id = m.user_id WHERE pe.name = ? "
+                           "ORDER BY m.date DESC LIMIT 1", (name,)).fetchone()
+        return {"title": "%sga rahmat aytish" % first, "items": [], "message": text.replace(first, _mention(conn, name), 1),
+                "chat": _chat(conn, row["chat_id"] if row else None)}
     if t in ("ping_person", "dm_person"):
         name = action["name"]
         person = conn.execute("SELECT dm_chat_id FROM people WHERE name = ?", (name,)).fetchone()
@@ -156,7 +171,7 @@ def correct(message_id: int, kind: str, project_id: int | None) -> dict:
     if kind not in ("task", "done", "blocker", "none"):
         raise ValueError("Tur: task | done | blocker | none")
     with db.session() as conn:
-        m = conn.execute("SELECT m.*, pe.name AS author, pe.username, c.title AS chat_title, p.key AS pkey FROM messages m "
+        m = conn.execute("SELECT m.*, COALESCE(pe.tg_name, pe.name) AS author, pe.username, c.title AS chat_title, p.key AS pkey FROM messages m "
                          "LEFT JOIN people pe ON pe.id = m.user_id LEFT JOIN chats c ON c.id = m.chat_id "
                          "LEFT JOIN projects p ON p.id = m.project_id WHERE m.id = ?", (message_id,)).fetchone()
         if m is None:
@@ -180,7 +195,7 @@ def invite(name: str, reset: bool = False) -> dict:
     """Xodimning shaxsiy havolasi. Bir marta yaratiladi; reset=True eskisini bekor qiladi."""
     import secrets
     with db.session() as conn:
-        row = conn.execute("SELECT id, invite_token, dm_chat_id, dm_linked_at FROM people WHERE name = ?", (name,)).fetchone()
+        row = conn.execute("SELECT id, invite_token, dm_chat_id, dm_linked_at, username, tg_name FROM people WHERE name = ?", (name,)).fetchone()
         if row is None:
             raise ValueError("Bu xodim hali guruhga yozmagan")
         token = row["invite_token"]
@@ -191,11 +206,58 @@ def invite(name: str, reset: bool = False) -> dict:
                 conn.execute("UPDATE people SET dm_chat_id = NULL, dm_linked_at = NULL WHERE id = ?", (row["id"],))
             db.bump_version(conn)
         linked = bool(row["dm_chat_id"]) and not reset
-        return {"name": name, "link": "https://t.me/%s?start=%s" % (config.BOT_USERNAME, token),
+        return {"name": name, "id": row["id"], "username": row["username"], "tg_name": row["tg_name"],
+                "link": "https://t.me/%s?start=%s" % (config.BOT_USERNAME, token),
                 "linked": linked, "linked_at": row["dm_linked_at"] if linked else None}
 
 
-def invites() -> list[dict]:
+def add_person(name: str, department: str | None = None) -> dict:
+    """Panelda qo'lda qo'shilgan xodim. Telegram akkaunti hali noma'lum: vaqtinchalik manfiy id bilan yoziladi va shaxsiy
+    havola beriladi. Xodim havolani bosganda bot uni haqiqiy akkauntiga bog'laydi (claim_person): guruhga avval yozgan
+    bo'lsa, o'sha yozuvlari shu xodimga o'tadi."""
+    name = " ".join((name or "").split())[:60]
+    if len(name) < 2:
+        raise ValueError("Ism-familiyani yozing")
+    if department and department not in db.DEPARTMENTS:
+        raise ValueError("Bo'lim noto'g'ri")
     with db.session() as conn:
-        names = [r["name"] for r in conn.execute("SELECT name FROM people WHERE id < 900000000 OR id > 900999999 ORDER BY name")]
-    return [invite(n) for n in names]
+        if conn.execute("SELECT 1 FROM people WHERE name = ?", (name,)).fetchone():
+            raise ValueError("Bu ismli xodim allaqachon bor")
+        low = conn.execute("SELECT min(id) FROM people").fetchone()[0] or 0
+        conn.execute("INSERT INTO people(id, name, department, status, name_locked) VALUES(?, ?, ?, 'xodim', 1)",
+                     (min(0, low) - 1, name, department or None))
+        db.bump_version(conn)
+    return invite(name)
+
+
+def claim_person(conn, row, tg_id: int) -> int:
+    """Panelda qo'shilgan xodim (manfiy id) havolani bosdi: endi haqiqiy Telegram id ma'lum. Shu akkaunt guruhga avval
+    yozgan bo'lsa ikki yozuv bittaga birlashadi (ism va bo'lim — rahbar panelda yozgani), bo'lmasa id almashtiriladi."""
+    if row["id"] >= 0:
+        return row["id"]
+    ph = dict(conn.execute("SELECT * FROM people WHERE id = ?", (row["id"],)).fetchone())
+    real = conn.execute("SELECT id, name FROM people WHERE id = ?", (tg_id,)).fetchone()
+    if real is None:
+        conn.execute("UPDATE people SET id = ? WHERE id = ?", (tg_id, ph["id"]))
+        return tg_id
+    conn.execute("DELETE FROM people WHERE id = ?", (ph["id"],))
+    db.rename_person(conn, real["name"], ph["name"])
+    conn.execute("UPDATE people SET department = coalesce(?, department), status = 'xodim', name_locked = 1, invite_token = ? "
+                 "WHERE id = ?", (ph["department"], ph["invite_token"], tg_id))
+    return tg_id
+
+
+def invites() -> list[dict]:
+    """Hammaning havolasi; ulanmaganlar birinchi, ulardan guruhga yozib, hisoboti qabul qilinmaganlar eng tepada."""
+    with db.session() as conn:
+        rows = conn.execute("SELECT pe.name, pe.status, pe.role, pe.line, (SELECT count(*) FROM messages m WHERE m.user_id = pe.id "
+                            "AND m.source = 'ulanmagan') AS skipped, (SELECT count(*) FROM messages m WHERE m.user_id = pe.id) AS msgs FROM people pe WHERE pe.id < %d OR pe.id > %d "
+                            "ORDER BY pe.name" % (db.DEMO_LO, db.DEMO_HI)).fetchall()
+    out = [{**invite(r["name"]), "skipped": r["skipped"], "status": r["status"], "lead": r["role"] == "rahbar", "msgs": r["msgs"],
+            "line": r["line"]} for r in rows]
+    for x in out:  # panel egasi har doim rahbar
+        x["owner"] = bool(config.OWNER_ID and x.get("id") == config.OWNER_ID)
+        x["lead"] = x["lead"] or x["owner"]
+    # tepada: hal qilinmagan yangilar (ko'p yozganlar oldin), keyin tasdiqlangan, ulangan, rahbarlar, eng pastda "begona"
+    rank = lambda x: 4 if x["status"] == "begona" else 3 if x["lead"] else 2 if x["linked"] else 1 if x["status"] == "xodim" else 0
+    return sorted(out, key=lambda x: (rank(x), -x["skipped"], x["name"]))

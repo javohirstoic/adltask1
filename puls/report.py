@@ -68,7 +68,8 @@ def build(conn: sqlite3.Connection, chat_id: int, day: date) -> tuple[bytes, str
 
     who = Counter(t["assignee"] for t in rows if t["assignee"]).most_common(3)
     open_n, late_n = conn.execute(
-        "SELECT count(*), sum(t.deadline IS NOT NULL AND t.deadline < ?) FROM tasks t JOIN projects p ON p.id = t.project_id "
+        "SELECT count(*), sum(CASE WHEN t.deadline IS NOT NULL AND t.deadline < ? THEN 1 ELSE 0 END) FROM tasks t "
+        "JOIN projects p ON p.id = t.project_id "
         "WHERE p.chat_id = ? AND t.status = 'open'", (day.isoformat(), chat_id)).fetchone()
     caption = "<b>Kun yakuni, %s</b>\nBugun %d ta vazifa bajarildi." % (uz_date(day), len(rows))
     if who:

@@ -380,9 +380,10 @@ act:
 - "confirm": after an answer, the user says the problem is solved or thanks ("ishladi", "bo'ldi rahmat", "заработало").
 - "reopen": after an answer, the user says it still does not work.
 - "none": greetings, chit-chat, staff talking among themselves, ads, thanks without an answered appeal.
-system: only for "appeal": ONE key of the systems this chat serves, or null. Choose a system only when the message or the
-conversation names it, its service or its document (e.g. "guvohnoma", "apostil", "notarial", "litsenziya", the app name).
-Never choose by the problem type: SMS codes, login, payments and slowness happen in every system. When unsure: null.
+system: only for "appeal": ONE key of the systems this chat serves, or null. Choose a system only when this message or this
+author's own earlier messages name it, its service or its document (e.g. "guvohnoma", "apostil", "notarial", "litsenziya",
+the app name). Other people's messages never decide this author's system. Never choose by the problem type: SMS codes,
+login, payments and slowness happen in every system. When unsure: null.
 {systems}
 type: only for "appeal", one of: {types}
 summary: only for "appeal": the problem in one short Uzbek (Latin) sentence a manager understands, at most 90 characters,
@@ -478,13 +479,17 @@ def _who_role(conn: sqlite3.Connection, user_id: int | None) -> tuple[str, bool]
     return (pe["name"] if pe is not None else "-") or "-", False
 
 
-def _context(conn: sqlite3.Connection, chat_id: int, when: str, me: dict, mid: int, parent) -> dict:
+def _context(conn: sqlite3.Connection, chat_id: int, when: str, me: dict, mid: int, parent, user_id: int | None = None) -> dict:
+    """Xabarni tushunish uchun suhbat. Xodim javobi uchun — butun guruh (qaysi murojaatga javob bergani). Foydalanuvchi xabari
+    uchun — faqat o'zining xabarlari va murojaatlari: boshqa odamning gapi uning tizimini yoki muammosini belgilamaydi
+    (call-markaz, bot, pochtada yonma-yon yozilgan xabarlar umuman boshqa-boshqa odamlarniki)."""
     since3 = _ts(_dt(when) - timedelta(days=3))
+    own = not me["staff"] and user_id is not None
     open_ = [dict(r) for r in conn.execute(
         "SELECT a.id, a.client_id, c.name AS client, p.name AS project, a.type, coalesce(a.summary, a.text) AS summary, a.status, "
         "a.last_at FROM appeals a LEFT JOIN clients c ON c.id = a.client_id LEFT JOIN projects p ON p.id = a.project_id "
-        "WHERE a.chat_id = ? AND (a.status IN ('ochiq', 'javob', 'qayta') OR a.last_at >= ?) ORDER BY a.last_at DESC LIMIT 25",
-        (chat_id, since3))]
+        "WHERE a.chat_id = ? AND (a.status IN ('ochiq', 'javob', 'qayta') OR a.last_at >= ?)%s ORDER BY a.last_at DESC LIMIT 25"
+        % (" AND a.client_id = ?" if own else ""), (chat_id, since3) + ((me.get("client_id"),) if own else ()))]
     mine = []
     if me.get("client_id"):
         mine = [dict(r) for r in conn.execute(
@@ -493,8 +498,9 @@ def _context(conn: sqlite3.Connection, chat_id: int, when: str, me: dict, mid: i
             (me["client_id"], _ts(_dt(when) - timedelta(days=REPEAT_DAYS))))]
     chat = []
     for r in reversed(conn.execute(
-            "SELECT id, user_id, date, text FROM messages WHERE chat_id = ? AND date >= ? AND date <= ? AND id != ? "
-            "ORDER BY date DESC, id DESC LIMIT 25", (chat_id, _ts(_dt(when) - timedelta(days=2)), when, mid)).fetchall()):
+            "SELECT id, user_id, date, text FROM messages WHERE chat_id = ? AND date >= ? AND date <= ? AND id != ?%s "
+            "ORDER BY date DESC, id DESC LIMIT 25" % (" AND user_id = ?" if own else ""),
+            (chat_id, _ts(_dt(when) - timedelta(days=2)), when, mid) + ((user_id,) if own else ())).fetchall()):
         name, staff = _who_role(conn, r["user_id"])
         chat.append({"time": r["date"][5:16], "who": "%s [%s]" % (name, "xodim" if staff else "foydalanuvchi"),
                      "text": short(r["text"], 220)})
@@ -667,7 +673,7 @@ def _process(conn: sqlite3.Connection, inc, mid: int, when: str, use_ai: bool) -
     parent = conn.execute("SELECT id, user_id, text FROM messages WHERE chat_id = ? AND msg_id = ?",
                           (inc.chat_id, inc.reply_to)).fetchone() if inc.reply_to else None
     systems = chat_projects(conn, inc.chat_id) or [support_project(conn, inc.chat_id, inc.chat_title, when)]
-    ctx = _context(conn, inc.chat_id, when, me, mid, parent)
+    ctx = _context(conn, inc.chat_id, when, me, mid, parent, inc.user_id)
     raw = _ai_read(ctx, systems, me, inc.text) if use_ai else None
     how = "ai" if raw else "qoida"
     act = raw or _rule_read(conn, ctx, me, inc.text, when)
@@ -714,6 +720,9 @@ def _apply(conn, act: dict, how: str, ctx: dict, systems: list[dict], me: dict, 
         # ro'yxatda yo'q odam foydalanuvchilarga support kabi javob beryapti: operator deb belgilanadi (rahbar tuzatishi mumkin)
         conn.execute("UPDATE clients SET staff = 1 WHERE id = ? AND staff IS NULL", (me["client_id"],))
         me = {**me, "staff": True, "line": 1}
+        # model unga foydalanuvchi sifatida faqat o'z murojaatlarini ko'rsatgan edi: javob qaysi murojaatga — butun guruhdan
+        ctx = {**ctx, "open": _context(conn, inc.chat_id, when, me, mid, None)["open"]}
+        ids = [i for i in act.get("appeal_ids") or [] if isinstance(i, int) and i in {a["id"] for a in ctx["open"]}]
     if me["staff"]:
         if kind != "answer":
             return
@@ -910,11 +919,13 @@ def stream_chat_id(channel: str) -> int:
     return -(3 * 10 ** 13 + _stable("kanal", channel))
 
 
-def import_stream(conn: sqlite3.Connection, items: list[dict], use_ai: bool = False, systems: dict | None = None) -> dict:
+def import_stream(conn: sqlite3.Connection, items: list[dict], use_ai: bool = False, systems: dict | None = None,
+                  commit_each: bool = False) -> dict:
     """Boshqa tizimlar bazasidan olingan xabarlar oqimi (yordam guruhlari, chatbotlar, call-markaz, pochta, sayt formasi):
     har xabar yordam guruhidagi xabar kabi o'qiladi — yangi murojaat, qo'shimcha, xodim javobi, tasdiq yoki boshqa gap.
     Kanal = yordam guruhi; yozgan odam kanal ichida nomi bilan aniqlanadi; nomida lavozimi bo'lsa ("Operator Nigora") —
-    xodim. systems: {kanal nomi: [tizim nomlari]} — kanal qaysi tizimlarga xizmat qiladi (bo'lmasa nomidan)."""
+    xodim. systems: {kanal nomi: [tizim nomlari]} — kanal qaysi tizimlarga xizmat qiladi (bo'lmasa nomidan).
+    commit_each: har xabar alohida saqlanadi (uzoq AI importi: panelda asta-sekin ko'rinadi, kanallar parallel yuklanadi)."""
     from types import SimpleNamespace
     added = skipped = 0
     errors = []
@@ -942,6 +953,8 @@ def import_stream(conn: sqlite3.Connection, items: list[dict], use_ai: bool = Fa
                 for name in want:
                     p = find_project(conn, name) or {"id": _project_by_hint(conn, name, when)}
                     conn.execute("INSERT INTO chat_projects(chat_id, project_id) VALUES(?, ?) ON CONFLICT DO NOTHING", (cid, p["id"]))
+            if commit_each:
+                conn.commit()  # kanal va uning tizimlari birinchi xabar xatosi bilan birga bekor bo'lib ketmasin
         who = " ".join(str(_field(it, "who") or "Noma'lum").split())[:80]
         uid = 10 ** 12 + _stable("odam", channel, who)
         m = STAFF_NAME_RE.match(who)
@@ -976,9 +989,13 @@ def import_stream(conn: sqlite3.Connection, items: list[dict], use_ai: bool = Fa
                 skipped += 1
             else:
                 added += 1
+            if commit_each:
+                conn.commit()
         except Exception as e:  # noqa: BLE001 — bitta xabar xatosi qolganlarini to'xtatmasin
             log.exception("oqim xabari o'qilmadi: %s", ext)
             errors.append({"i": n, "id": ext, "error": str(e)[:200]})
+            if commit_each:
+                conn.rollback()
     db.bump_version(conn)
     return {"added": added, "skipped": skipped, "errors": errors, "channels": len(chats)}
 

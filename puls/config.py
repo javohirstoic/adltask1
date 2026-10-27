@@ -44,6 +44,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")  # AI Studio kaliti: bo'lsa aso
 LOCAL_AI_URL = os.getenv("LOCAL_AI_URL", "")
 LOCAL_AI_MODEL = os.getenv("LOCAL_AI_MODEL", "gemma-4-e4b")
 LOCAL_AI_TIMEOUT = float(os.getenv("LOCAL_AI_TIMEOUT", "180"))
+LOCAL_AI_KEY = os.getenv("LOCAL_AI_KEY", "")  # model tashqi manzilda (masalan GPU serverda) kalit bilan himoyalangan bo'lsa
 # Murojaatlarni (fuqarolar yozgan matn) kim o'qiydi: local | gemini | off
 APPEALS_AI = os.getenv("APPEALS_AI", "gemini").lower()
 

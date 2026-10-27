@@ -11,6 +11,10 @@ from puls import config, db
 @pytest.fixture(autouse=True)
 def _no_network_ai(monkeypatch):
     monkeypatch.setattr(config, "AI_PROVIDER", "off")
+    # serverdagi .env (APPEALS_AI=local, LOCAL_AI_URL) testga o'tmasin: aks holda testlar haqiqiy modelni chaqiradi
+    monkeypatch.setattr(config, "APPEALS_AI", "gemini")
+    monkeypatch.setattr(config, "LOCAL_AI_URL", "")
+    monkeypatch.setattr(config, "LOCAL_AI_KEY", "")
 
 
 

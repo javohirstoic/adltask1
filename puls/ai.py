@@ -262,23 +262,35 @@ def _call_local(prompt: str, schema: dict, max_tokens: int = 600, timeout: float
         "chat_template_kwargs": {"enable_thinking": False},  # o'ylash yoqilsa, tokenlar o'ylashga ketib javob bo'sh qoladi
         "cache_prompt": True,  # ko'rsatmaning o'zgarmas boshi qayta hisoblanmaydi (sekin protsessorda muhim)
     }
+    auth = {"Authorization": "Bearer " + config.LOCAL_AI_KEY} if config.LOCAL_AI_KEY else {}
     req = urllib.request.Request(config.LOCAL_AI_URL.rstrip("/") + "/chat/completions", data=json.dumps(body).encode(),
-                                 headers={"Content-Type": "application/json"})
+                                 headers={"Content-Type": "application/json", **auth})
     with urllib.request.urlopen(req, timeout=timeout or config.LOCAL_AI_TIMEOUT) as resp:
         data = json.loads(resp.read())
     return json.loads(data["choices"][0]["message"]["content"])
 
 
+LOADING_WAIT = 240  # model yuklanayotganda (llama.cpp 503 qaytaradi) shuncha soniyagacha kutiladi
+
+
 def ask_local(prompt: str, schema: dict, retries: int = 1, max_tokens: int = 600) -> dict | None:
     if not config.LOCAL_AI_URL:
         return None
-    for attempt in range(retries + 1):
+    attempt, waited = 0, 0
+    while attempt <= retries:
         try:
             return _call_local(prompt, schema, max_tokens)
+        except urllib.error.HTTPError as e:
+            if e.code == 503 and waited < LOADING_WAIT:  # qayta ishga tushgan model hali yuklanmoqda: bu xato emas, kutiladi
+                time.sleep(5)
+                waited += 5
+                continue
+            log.warning("lokal model javob bermadi (%s/%s): %s", attempt + 1, retries + 1, e)
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             log.warning("lokal model javob bermadi (%s/%s): %s", attempt + 1, retries + 1, e)
         except (KeyError, IndexError, ValueError) as e:
             log.warning("lokal model javobi o'qilmadi: %s", e)
+        attempt += 1
     return None
 
 

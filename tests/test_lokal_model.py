@@ -70,6 +70,21 @@ def test_ask_local_request_shape(fake_llm):
     assert body["response_format"]["json_schema"]["schema"]["properties"]["act"]["enum"][0] == "appeal"
 
 
+def test_waits_while_model_is_loading(monkeypatch):
+    """Qayta ishga tushgan llama.cpp model yuklanguncha 503 qaytaradi: bu xato emas, javob kutiladi (qoidaga o'tilmaydi)."""
+    calls = []
+
+    def fake(prompt, schema, max_tokens=600, timeout=None):
+        calls.append(1)
+        if len(calls) <= 3:
+            raise ai.urllib.error.HTTPError("http://x", 503, "Loading model", {}, None)
+        return {"act": "none"}
+    monkeypatch.setattr(ai, "_call_local", fake)
+    monkeypatch.setattr(ai.time, "sleep", lambda s: None)
+    monkeypatch.setattr(config, "LOCAL_AI_URL", "http://x/v1")
+    assert ai.ask_local("salom", appeals.SUPPORT_SCHEMA, retries=0) == {"act": "none"} and len(calls) == 4
+
+
 def test_local_model_down_falls_back_to_rules(conn, monkeypatch):
     monkeypatch.setattr(config, "LOCAL_AI_URL", "http://127.0.0.1:9/v1")  # hech kim tinglamaydi
     monkeypatch.setattr(config, "APPEALS_AI", "local")
@@ -117,6 +132,28 @@ def test_shared_chat_unknown_system_goes_to_review(conn, fake_llm):
     data = {r["id"]: r for r in appeals.dataset(conn)}
     assert data[aid]["system"] == "Zags" and data[aid]["checked"] is True
     assert sum(1 for r in data.values() if not r["checked"]) == 1
+
+
+def test_user_context_has_only_own_messages(conn, fake_llm):
+    """Call-markaz, bot, pochta kanalida ketma-ket xabarlar turli odamlarniki: B'ning xabarini o'qishda A'ning gapi va
+    murojaati modelga berilmaydi (aks holda model B'ga A'ning tizimini yopishtiradi). Xodim javobida esa butun suhbat."""
+    title = "1008 | Yordam"
+    ingest(conn, Incoming(CHAT, title, 1, 501, "Laylo", None, T0, "salom"), use_ai=True)
+    ap = conn.execute("INSERT INTO projects(key, name, created_at, yordam) VALUES('apostil', 'Apostil', ?, 1)", (T0.isoformat(),)).lastrowid
+    no = conn.execute("INSERT INTO projects(key, name, created_at, yordam) VALUES('notariat', 'Notariat', ?, 1)", (T0.isoformat(),)).lastrowid
+    appeals.set_chat_kind(conn, CHAT, "yordam", [ap, no])
+    fake_llm["answers"].append({"act": "appeal", "system": "apostil", "type": "payment", "summary": "Apostil to'lovi o'tmadi"})
+    ingest(conn, Incoming(CHAT, title, 2, 501, "Laylo", None, T0 + timedelta(minutes=1), "Apostil bojini to'ladim, holat o'zgarmadi"),
+           use_ai=True)
+    fake_llm["answers"].append({"act": "appeal", "system": None, "type": "howto", "summary": "Qaysi hujjatlar kerak"})
+    ingest(conn, Incoming(CHAT, title, 3, 502, "Otabek", None, T0 + timedelta(minutes=2), "Qaysi hujjatlar kerak?"), use_ai=True)
+    user_prompt = fake_llm["got"][-1][1]["messages"][0]["content"]
+    assert "Qaysi hujjatlar kerak?" in user_prompt
+    assert "Apostil bojini" not in user_prompt and "Apostil to'lovi" not in user_prompt and "Laylo" not in user_prompt
+    fake_llm["answers"].append({"act": "answer", "appeal_ids": [], "grade": "part", "solved": False, "note": "x"})
+    ingest(conn, Incoming(CHAT, title, 4, 1, "Operator", None, T0 + timedelta(minutes=3), "Apostil holati yangilandi"), use_ai=True)
+    staff_prompt = fake_llm["got"][-1][1]["messages"][0]["content"]
+    assert "Apostil bojini" in staff_prompt and "Qaysi hujjatlar kerak?" in staff_prompt
 
 
 def test_voice_not_sent_outside_in_local_mode(conn, fake_llm, monkeypatch):
